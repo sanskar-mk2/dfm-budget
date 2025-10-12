@@ -1,0 +1,6 @@
+fastapi[standard]
+black
+python-dotenv
+sqlmodel
+pymysql
+bcrypt

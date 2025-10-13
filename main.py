@@ -15,6 +15,8 @@ from constants import ALLOWED_ORIGINS
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup
+    from db.budget_models import init_db
+    init_db()
     yield
     # shutdown
 

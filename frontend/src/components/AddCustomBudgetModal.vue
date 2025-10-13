@@ -1,0 +1,253 @@
+<template>
+    <div v-if="isOpen" class="modal modal-open">
+        <div class="modal-box w-11/12 max-w-2xl">
+            <h3 class="font-bold text-lg mb-4">Add Custom Budget</h3>
+            
+            <form @submit.prevent="handleSubmit" class="space-y-4">
+                <!-- Customer Name (both types) -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Customer Name</span>
+                    </label>
+                    <input
+                        v-model="form.customer_name"
+                        type="text"
+                        placeholder="Enter customer name"
+                        class="input input-bordered w-full"
+                        :class="{ 'input-error': errors.customer_name }"
+                        required
+                    />
+                    <label v-if="errors.customer_name" class="label">
+                        <span class="label-text-alt text-error">{{ errors.customer_name }}</span>
+                    </label>
+                </div>
+
+                <!-- Non-Hospitality Form -->
+                <div v-if="!isHospitality" class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Customer Class</span>
+                        </label>
+                        <input
+                            v-model="form.customer_class"
+                            type="text"
+                            list="customer-classes"
+                            placeholder="Enter or select customer class"
+                            class="input input-bordered w-full"
+                            :class="{ 'input-error': errors.customer_class }"
+                            required
+                        />
+                        <datalist id="customer-classes">
+                            <option v-for="customerClass in props.autosuggestData.customer_classes" :key="customerClass" :value="customerClass" />
+                        </datalist>
+                        <label v-if="errors.customer_class" class="label">
+                            <span class="label-text-alt text-error">{{ errors.customer_class }}</span>
+                        </label>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Brand and Flag will be set to null for non-hospitality budgets.</span>
+                    </div>
+                </div>
+
+                <!-- Hospitality Form -->
+                <div v-else class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Brand</span>
+                        </label>
+                        <input
+                            v-model="form.brand"
+                            type="text"
+                            list="brands"
+                            placeholder="Enter or select brand"
+                            class="input input-bordered w-full"
+                            :class="{ 'input-error': errors.brand }"
+                            required
+                        />
+                        <datalist id="brands">
+                            <option v-for="brand in props.autosuggestData.brands" :key="brand" :value="brand" />
+                        </datalist>
+                        <label v-if="errors.brand" class="label">
+                            <span class="label-text-alt text-error">{{ errors.brand }}</span>
+                        </label>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Flag</span>
+                        </label>
+                        <input
+                            v-model="form.flag"
+                            type="text"
+                            placeholder="Enter flag"
+                            class="input input-bordered w-full"
+                            :class="{ 'input-error': errors.flag }"
+                            required
+                        />
+                        <label v-if="errors.flag" class="label">
+                            <span class="label-text-alt text-error">{{ errors.flag }}</span>
+                        </label>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Customer Class</span>
+                        </label>
+                        <input
+                            type="text"
+                            value="Hospitality"
+                            class="input input-bordered w-full input-disabled"
+                            disabled
+                        />
+                        <label class="label">
+                            <span class="label-text-alt">Automatically set to "Hospitality" for hospitality users</span>
+                        </label>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Brand, Flag, and Customer Name will be saved in UPPERCASE.</span>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="modal-action">
+                    <button type="button" @click="handleCancel" class="btn btn-ghost" :disabled="loading">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" :disabled="loading">
+                        <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+                        {{ loading ? 'Creating...' : 'Create Budget' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</template>
+
+<script setup>
+import { ref, reactive, watch, onMounted } from 'vue';
+
+const props = defineProps({
+    isOpen: {
+        type: Boolean,
+        default: false
+    },
+    isHospitality: {
+        type: Boolean,
+        default: false
+    },
+    autosuggestData: {
+        type: Object,
+        default: () => ({
+            customer_classes: [],
+            brands: []
+        })
+    }
+});
+
+const emit = defineEmits(['close', 'created', 'fetch-autosuggest']);
+
+const loading = ref(false);
+
+const form = reactive({
+    customer_name: '',
+    customer_class: '',
+    brand: '',
+    flag: ''
+});
+
+const errors = reactive({
+    customer_name: '',
+    customer_class: '',
+    brand: '',
+    flag: ''
+});
+
+const validateForm = () => {
+    // Clear previous errors
+    Object.keys(errors).forEach(key => errors[key] = '');
+    
+    let isValid = true;
+
+    if (!form.customer_name.trim()) {
+        errors.customer_name = 'Customer name is required';
+        isValid = false;
+    }
+
+    if (!props.isHospitality) {
+        if (!form.customer_class.trim()) {
+            errors.customer_class = 'Customer class is required';
+            isValid = false;
+        }
+    } else {
+        if (!form.brand.trim()) {
+            errors.brand = 'Brand is required';
+            isValid = false;
+        }
+        if (!form.flag.trim()) {
+            errors.flag = 'Flag is required';
+            isValid = false;
+        }
+    }
+
+    return isValid;
+};
+
+const handleSubmit = async () => {
+    if (!validateForm()) {
+        return;
+    }
+
+    loading.value = true;
+
+    try {
+        const budgetData = {
+            customer_name: props.isHospitality ? form.customer_name.toUpperCase() : form.customer_name,
+            customer_class: props.isHospitality ? 'Hospitality' : form.customer_class,
+            brand: props.isHospitality ? form.brand.toUpperCase() : null,
+            flag: props.isHospitality ? form.flag.toUpperCase() : null,
+            is_custom: true
+        };
+
+        // Emit the budget data to parent component
+        emit('created', budgetData);
+        
+        // Reset form
+        resetForm();
+        
+        // Close modal
+        emit('close');
+    } catch (error) {
+        console.error('Error creating custom budget:', error);
+    } finally {
+        loading.value = false;
+    }
+};
+
+const handleCancel = () => {
+    resetForm();
+    emit('close');
+};
+
+const resetForm = () => {
+    form.customer_name = '';
+    form.customer_class = '';
+    form.brand = '';
+    form.flag = '';
+    Object.keys(errors).forEach(key => errors[key] = '');
+};
+
+// Watch for modal open to fetch autosuggest data
+watch(() => props.isOpen, (isOpen) => {
+    if (isOpen) {
+        emit('fetch-autosuggest');
+    }
+});
+</script>

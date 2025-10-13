@@ -1,146 +1,118 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import { useAuthStore } from "@/stores/auth";
+import { onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+import { useSalesData } from '@/composables/useSalesData';
+import { useBudgetData } from '@/composables/useBudgetData';
+import SalesTable from '@/components/SalesTable.vue';
+import SalesSummary from '@/components/SalesSummary.vue';
+import UserInfo from '@/components/UserInfo.vue';
+import AddCustomBudgetModal from '@/components/AddCustomBudgetModal.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const { currentUser, currentSalesperson, logout: authLogout } = authStore;
 
-const sales = ref([]);
-const loading = ref(false);
-const error = ref("");
-const debugData = ref(null);
-const showDebug = ref(false);
+// Use composables for data management
+const {
+    sales,
+    loading,
+    error,
+    isHospitality,
+    fetchSales,
+    getTotalQ1,
+    getTotalQ2,
+    getTotalQ3,
+    getTotalQ4,
+    getTotalSales,
+    getTotalZeroPercent,
+    getZeroPercentRate
+} = useSalesData();
 
 const {
-    currentUser,
-    currentSalesperson,
-    logout: authLogout,
-    apiCall,
-} = authStore;
-
-const isHospitality = computed(() => {
-    const role = currentSalesperson.value?.role || '';
-    return role.startsWith('Hospitality');
-});
-
-const fetchSales = async () => {
-    loading.value = true;
-    error.value = "";
-
-    try {
-        const response = await apiCall("http://localhost:8000/sales");
-
-        if (!response.ok) {
-            throw new Error("Failed to fetch sales data");
-        }
-
-        const data = await response.json();
-        sales.value = data.data || [];
-    } catch (err) {
-        error.value = err.message;
-        console.error("Error fetching sales:", err);
-    } finally {
-        loading.value = false;
-    }
-};
-
-const fetchDebugData = async () => {
-    try {
-        const response = await apiCall("http://localhost:8000/sales/debug");
-
-        if (!response.ok) {
-            throw new Error("Failed to fetch debug data");
-        }
-
-        const data = await response.json();
-        debugData.value = data;
-        showDebug.value = true;
-        console.log("Debug data:", data);
-    } catch (err) {
-        error.value = err.message;
-        console.error("Error fetching debug data:", err);
-    }
-};
+    fetchBudgets,
+    getBudgetValue,
+    getCellClass,
+    handleBudgetChange,
+    handleBudgetBlur,
+    handleBudgetInput,
+    loadPendingChangesFromStorage,
+    fetchAutosuggestData,
+    createCustomBudget,
+    deleteCustomBudget,
+    getCustomBudgets,
+    autosuggestData,
+    cleanup
+} = useBudgetData();
 
 const logout = () => {
     authLogout();
-    router.push("/login");
+    router.push('/login');
 };
 
-const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString();
+// Modal state
+const isModalOpen = ref(false);
+
+const openModal = () => {
+    isModalOpen.value = true;
 };
 
-const formatCurrency = (amount) => {
-    if (!amount && amount !== 0) return "0.00";
-    return parseFloat(amount).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+const closeModal = () => {
+    isModalOpen.value = false;
+};
+
+const handleCustomBudgetCreated = async (budgetData) => {
+    try {
+        await createCustomBudget(budgetData);
+        console.log('Custom budget created successfully');
+    } catch (error) {
+        console.error('Error creating custom budget:', error);
+    }
+};
+
+const handleDeleteCustomBudget = async (budgetId) => {
+    try {
+        await deleteCustomBudget(budgetId);
+        console.log('Custom budget deleted successfully');
+    } catch (error) {
+        console.error('Error deleting custom budget:', error);
+    }
+};
+
+const handleFetchAutosuggest = async () => {
+    await fetchAutosuggestData();
+};
+
+onMounted(async () => {
+    await fetchSales();
+    await fetchBudgets();
+
+    // Load any pending changes from localStorage
+    const hasPendingChanges = loadPendingChangesFromStorage();
+    if (hasPendingChanges) {
+        console.log('Restored pending budget changes from localStorage');
+    }
+
+    // Add beforeunload listener to warn about unsaved changes
+    window.addEventListener('beforeunload', (event) => {
+        // This will be handled by the budget composable
     });
-};
+});
 
-const formatPercentage = (percentage) => {
-    if (!percentage && percentage !== 0) return "0.00";
-    return parseFloat(percentage).toFixed(2);
-};
-
-const getZeroPercentClass = (percentage) => {
-    if (!percentage && percentage !== 0) return "";
-    const percent = parseFloat(percentage);
-    if (percent === 0) return "text-success";
-    if (percent < 5) return "text-warning";
-    if (percent < 10) return "text-warning";
-    return "text-error";
-};
-
-// Summary calculation functions
-const getTotalQ1 = () => {
-    return sales.value.reduce((sum, sale) => sum + (parseFloat(sale.q1_sales) || 0), 0);
-};
-
-const getTotalQ2 = () => {
-    return sales.value.reduce((sum, sale) => sum + (parseFloat(sale.q2_sales) || 0), 0);
-};
-
-const getTotalQ3 = () => {
-    return sales.value.reduce((sum, sale) => sum + (parseFloat(sale.q3_sales) || 0), 0);
-};
-
-const getTotalQ4 = () => {
-    return sales.value.reduce((sum, sale) => sum + (parseFloat(sale.q4_sales) || 0), 0);
-};
-
-const getTotalSales = () => {
-    return sales.value.reduce((sum, sale) => sum + (parseFloat(sale.total_sales) || 0), 0);
-};
-
-const getTotalZeroPercent = () => {
-    return sales.value.reduce((sum, sale) => sum + (parseFloat(sale.zero_perc_sales_total) || 0), 0);
-};
-
-const getZeroPercentRate = () => {
-    const totalSales = getTotalSales();
-    const totalZeroPercent = getTotalZeroPercent();
-    return totalSales > 0 ? (totalZeroPercent / totalSales) * 100 : 0;
-};
-
-onMounted(() => {
-    fetchSales();
+onUnmounted(() => {
+    window.removeEventListener('beforeunload', () => {});
+    cleanup();
 });
 </script>
 
 <template>
     <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">Sales Data</h1>
             <div class="flex gap-2">
-                <button
-                    @click="fetchDebugData"
-                    class="btn btn-outline btn-info"
-                >
-                    Debug Data
+                <button @click="openModal" class="btn btn-primary">
+                    Add Custom Budget
                 </button>
                 <button @click="logout" class="btn btn-outline btn-error">
                     Logout
@@ -148,10 +120,12 @@ onMounted(() => {
             </div>
         </div>
 
+        <!-- Loading State -->
         <div v-if="loading" class="flex justify-center">
             <div class="loading loading-spinner loading-lg"></div>
         </div>
 
+        <!-- Error State -->
         <div v-else-if="error" class="alert alert-error">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -169,181 +143,52 @@ onMounted(() => {
             <span>{{ error }}</span>
         </div>
 
+        <!-- Empty State -->
         <div v-else-if="sales.length === 0" class="text-center py-8">
             <p class="text-lg text-base-content/70">No sales data found</p>
         </div>
 
-        <div v-else class="overflow-x-auto">
-            <table class="table table-zebra w-full">
-                <thead>
-                    <tr>
-                        <th>Brand</th>
-                        <th>Flag</th>
-                        <th>Customer Name</th>
-                        <th>Customer Class</th>
-                        <th>Q1 Sales</th>
-                        <th>Q2 Sales</th>
-                        <th>Q3 Sales</th>
-                        <th>Q4 Sales</th>
-                        <th>Zero % Sales</th>
-                        <th>Total Sales</th>
-                        <th>Zero % %</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="sale in sales" :key="`${sale.customer_name}-${sale.brand || 'null'}-${sale.flag || 'null'}`">
-                        <td>{{ sale.brand || 'N/A' }}</td>
-                        <td>{{ sale.flag || 'N/A' }}</td>
-                        <td class="font-medium">{{ sale.customer_name || 'N/A' }}</td>
-                        <td>{{ sale.derived_customer_class || 'N/A' }}</td>
-                        <td class="text-right">${{ formatCurrency(sale.q1_sales) }}</td>
-                        <td class="text-right">${{ formatCurrency(sale.q2_sales) }}</td>
-                        <td class="text-right">${{ formatCurrency(sale.q3_sales) }}</td>
-                        <td class="text-right">${{ formatCurrency(sale.q4_sales) }}</td>
-                        <td class="text-right">${{ formatCurrency(sale.zero_perc_sales_total) }}</td>
-                        <td class="text-right font-semibold">${{ formatCurrency(sale.total_sales) }}</td>
-                        <td class="text-right">
-                            <span :class="getZeroPercentClass(sale.zero_perc_sales_percent)">
-                                {{ formatPercentage(sale.zero_perc_sales_percent) }}%
-                            </span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Main Content -->
+        <div v-else>
+            <!-- Sales Table -->
+            <SalesTable
+                :sales="sales"
+                :custom-budgets="getCustomBudgets()"
+                :get-budget-value="getBudgetValue"
+                :get-cell-class="getCellClass"
+                :handle-budget-change="handleBudgetChange"
+                :handle-budget-blur="handleBudgetBlur"
+                :handle-budget-input="handleBudgetInput"
+                :handle-delete-custom-budget="handleDeleteCustomBudget"
+            />
+
+            <!-- Sales Summary -->
+            <SalesSummary
+                :sales="sales"
+                :get-total-q1="getTotalQ1"
+                :get-total-q2="getTotalQ2"
+                :get-total-q3="getTotalQ3"
+                :get-total-q4="getTotalQ4"
+                :get-total-sales="getTotalSales"
+                :get-total-zero-percent="getTotalZeroPercent"
+                :get-zero-percent-rate="getZeroPercentRate"
+            />
         </div>
 
-        <!-- Summary Section -->
-        <div v-if="sales.length > 0" class="mt-8 p-4 bg-base-200 rounded-lg">
-            <h3 class="text-lg font-semibold mb-4">Sales Summary</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="stat">
-                    <div class="stat-title">Total Customers</div>
-                    <div class="stat-value text-primary">{{ sales.length }}</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Q1 Total</div>
-                    <div class="stat-value text-info">${{ formatCurrency(getTotalQ1()) }}</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Q2 Total</div>
-                    <div class="stat-value text-info">${{ formatCurrency(getTotalQ2()) }}</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Q3 Total</div>
-                    <div class="stat-value text-info">${{ formatCurrency(getTotalQ3()) }}</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Q4 Total</div>
-                    <div class="stat-value text-info">${{ formatCurrency(getTotalQ4()) }}</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Total Sales</div>
-                    <div class="stat-value text-success">${{ formatCurrency(getTotalSales()) }}</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Zero % Sales</div>
-                    <div class="stat-value text-warning">${{ formatCurrency(getTotalZeroPercent()) }}</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Zero % Rate</div>
-                    <div class="stat-value" :class="getZeroPercentClass(getZeroPercentRate())">
-                        {{ getZeroPercentRate().toFixed(2) }}%
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- User Info -->
+        <UserInfo
+            :current-user="currentUser"
+            :current-salesperson="currentSalesperson"
+        />
 
-        <div class="mt-8 p-4 bg-base-200 rounded-lg">
-            <h3 class="text-lg font-semibold mb-2">User Info</h3>
-            <p><strong>Username:</strong> {{ currentUser?.username }}</p>
-            <p v-if="currentSalesperson">
-                <strong>Salesperson:</strong> {{ currentSalesperson.name }}
-            </p>
-        </div>
-
-        <!-- Debug Data Section -->
-        <div
-            v-if="showDebug && debugData"
-            class="mt-8 p-4 bg-base-300 rounded-lg"
-        >
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Debug Information</h3>
-                <button @click="showDebug = false" class="btn btn-sm btn-ghost">
-                    Close
-                </button>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-base-100 p-3 rounded">
-                    <h4 class="font-semibold mb-2">Period Information</h4>
-                    <p>
-                        <strong>Salesman No:</strong>
-                        {{ debugData.salesman_no }}
-                    </p>
-                    <p>
-                        <strong>Min Period:</strong>
-                        {{ debugData.period_info?.min_period }}
-                    </p>
-                    <p>
-                        <strong>Max Period:</strong>
-                        {{ debugData.period_info?.max_period }}
-                    </p>
-                    <p>
-                        <strong>Total Records:</strong>
-                        {{ debugData.period_info?.total_records }}
-                    </p>
-                    <p>
-                        <strong>Unique Periods:</strong>
-                        {{ debugData.period_info?.unique_periods }}
-                    </p>
-                </div>
-
-                <div class="bg-base-100 p-3 rounded">
-                    <h4 class="font-semibold mb-2">Period List</h4>
-                    <div class="max-h-32 overflow-y-auto">
-                        <span
-                            v-for="period in debugData.period_list"
-                            :key="period"
-                            class="badge badge-outline mr-1 mb-1"
-                        >
-                            {{ period }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <h4 class="font-semibold mb-2">Sample Sales Data</h4>
-                <div class="overflow-x-auto">
-                    <table class="table table-xs">
-                        <thead>
-                            <tr>
-                                <th>Flag</th>
-                                <th>Brand</th>
-                                <th>Customer</th>
-                                <th>Period</th>
-                                <th>Sales</th>
-                                <th>Zero %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="item in debugData.sales_sample"
-                                :key="item.id"
-                            >
-                                <td>{{ item.flag }}</td>
-                                <td>{{ item.brand }}</td>
-                                <td>{{ item.customer_name }}</td>
-                                <td>{{ item.period }}</td>
-                                <td>
-                                    ${{ item.ext_sales?.toFixed(2) || "0.00" }}
-                                </td>
-                                <td>{{ item.zero_perc_sales }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        <!-- Custom Budget Modal -->
+        <AddCustomBudgetModal
+            :is-open="isModalOpen"
+            :is-hospitality="isHospitality"
+            :autosuggest-data="autosuggestData"
+            @close="closeModal"
+            @created="handleCustomBudgetCreated"
+            @fetch-autosuggest="handleFetchAutosuggest"
+        />
     </div>
 </template>

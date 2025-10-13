@@ -1,4 +1,4 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, select, text
 from typing import List, Dict, Any, Optional
 from db.budget_models import Budget
 from db.dfm_reflect import Salesperson
@@ -119,3 +119,31 @@ class BudgetService:
             "total_sales": total_sales,
             "custom_budgets": custom_budgets
         }
+
+    def get_unique_customer_classes(self, salesperson_id: int) -> List[str]:
+        """Get all unique customer classes from sales data for autosuggest"""
+        query = text(f"""
+            SELECT DISTINCT derived_customer_class
+            FROM sales 
+            WHERE salesperson = {salesperson_id}
+              AND derived_customer_class IS NOT NULL
+              AND derived_customer_class != ''
+            ORDER BY derived_customer_class
+        """)
+        
+        result = self.db.exec(query)
+        return [row[0] for row in result if row[0]]
+
+    def get_unique_brands(self, salesperson_id: int) -> List[str]:
+        """Get all unique brands from sales data for hospitality users"""
+        query = text(f"""
+            SELECT DISTINCT brand
+            FROM sales 
+            WHERE salesperson = {salesperson_id}
+              AND brand IS NOT NULL
+              AND brand != ''
+            ORDER BY brand
+        """)
+        
+        result = self.db.exec(query)
+        return [row[0] for row in result if row[0]]

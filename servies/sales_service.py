@@ -50,19 +50,17 @@ class SalesService:
         - Each flag has a fixed brand
         - derived_customer_class = 'Hospitality'
         """
-        # Step 1: Get basic sales data grouped by flag, brand, customer_name (2025 only)
+        # Step 1: Get basic sales data grouped by flag, brand (2025 only)
         basic_query = text(f"""
             SELECT 
                 flag,
                 brand,
-                customer_name,
-                COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
                 SUM(COALESCE(ext_sales, 0)) as total_sales,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_total
             FROM sales 
             WHERE salesperson = {salesman_no}
               AND period >= '2025-01-01' AND period < '2026-01-01'
-            GROUP BY flag, brand, customer_name, derived_customer_class
+            GROUP BY flag, brand
         """)
         
         basic_result = self.db.exec(basic_query)
@@ -73,43 +71,39 @@ class SalesService:
             SELECT 
                 flag,
                 brand,
-                customer_name,
-                COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
                 SUM(CASE WHEN period >= '2025-01-01' AND period < '2025-04-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q1_sales,
                 SUM(CASE WHEN period >= '2025-04-01' AND period < '2025-07-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q2_sales,
                 SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales
             FROM sales 
             WHERE salesperson = {salesman_no}
               AND period >= '2025-01-01' AND period < '2026-01-01'
-            GROUP BY flag, brand, customer_name, derived_customer_class
+            GROUP BY flag, brand
         """)
         
         quarterly_result = self.db.exec(quarterly_query)
-        quarterly_data = {f"{row.flag}_{row.brand}_{row.customer_name}": dict(row._mapping) for row in quarterly_result}
+        quarterly_data = {f"{row.flag}_{row.brand}": dict(row._mapping) for row in quarterly_result}
         
         # Step 3: Get Q4 data from open_orders (including zero % sales)
         q4_query = text(f"""
             SELECT 
                 flag,
                 brand,
-                customer_name,
-                COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
                 SUM(COALESCE(ext_sales, 0)) as q4_sales,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_zero_perc_sales
             FROM open_orders 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2025-10-01' 
               AND requested_ship_date < '2026-01-01'
-            GROUP BY flag, brand, customer_name, derived_customer_class
+            GROUP BY flag, brand
         """)
         
         q4_result = self.db.exec(q4_query)
-        q4_data = {f"{row.flag}_{row.brand}_{row.customer_name}": dict(row._mapping) for row in q4_result}
+        q4_data = {f"{row.flag}_{row.brand}": dict(row._mapping) for row in q4_result}
         
         # Step 4: Combine the data
         final_data = []
         for item in basic_data:
-            key = f"{item['flag']}_{item['brand']}_{item['customer_name']}"
+            key = f"{item['flag']}_{item['brand']}"
             quarterly = quarterly_data.get(key, {})
             q4 = q4_data.get(key, {})
             
@@ -124,8 +118,8 @@ class SalesService:
             final_data.append({
                 'flag': item['flag'],
                 'brand': item['brand'],
-                'customer_name': item['customer_name'],
-                'derived_customer_class': item['derived_customer_class'],
+                'customer_name': None,  # Set to null for hospitality
+                'derived_customer_class': None,  # Set to null for hospitality
                 'q1_sales': quarterly.get('q1_sales', 0),
                 'q2_sales': quarterly.get('q2_sales', 0),
                 'q3_sales': quarterly.get('q3_sales', 0),
@@ -135,8 +129,26 @@ class SalesService:
                 'zero_perc_sales_percent': round(zero_perc_percent, 2)
             })
         
-        # Sort by brand DESC, flag DESC
-        final_data.sort(key=lambda x: (x['brand'] or '', x['flag'] or ''), reverse=True)
+        # Filter out rows with zero total sales
+        final_data = [item for item in final_data if (item['total_sales'] or 0) > 0]
+        
+        # Sort by brand total sales DESC, flag total sales DESC
+        # First, calculate brand totals for sorting
+        brand_totals = {}
+        flag_totals = {}
+        for item in final_data:
+            brand = item['brand'] or 'Unknown Brand'
+            flag = item['flag'] or 'Unknown Flag'
+            sales = item['total_sales'] or 0
+            
+            brand_totals[brand] = brand_totals.get(brand, 0) + sales
+            flag_totals[f"{brand}_{flag}"] = flag_totals.get(f"{brand}_{flag}", 0) + sales
+        
+        # Sort by brand total sales DESC, flag total sales DESC
+        final_data.sort(key=lambda x: (
+            brand_totals.get(x['brand'] or 'Unknown Brand', 0),
+            flag_totals.get(f"{x['brand'] or 'Unknown Brand'}_{x['flag'] or 'Unknown Flag'}", 0)
+        ), reverse=True)
         return final_data
 
     def _get_non_hospitality_sales_data(self, salesman_no: int) -> List[Dict[str, Any]]:
@@ -225,8 +237,26 @@ class SalesService:
                 'flag': None
             })
         
-        # Sort by derived_customer_class DESC, customer_name DESC
-        final_data.sort(key=lambda x: (x['derived_customer_class'] or '', x['customer_name'] or ''), reverse=True)
+        # Filter out rows with zero total sales
+        final_data = [item for item in final_data if (item['total_sales'] or 0) > 0]
+        
+        # Sort by customer class total sales DESC, customer name total sales DESC
+        # First, calculate customer class totals for sorting
+        customer_class_totals = {}
+        customer_name_totals = {}
+        for item in final_data:
+            customer_class = item['derived_customer_class'] or 'Unknown Class'
+            customer_name = item['customer_name'] or 'Unknown Customer'
+            sales = item['total_sales'] or 0
+            
+            customer_class_totals[customer_class] = customer_class_totals.get(customer_class, 0) + sales
+            customer_name_totals[f"{customer_class}_{customer_name}"] = customer_name_totals.get(f"{customer_class}_{customer_name}", 0) + sales
+        
+        # Sort by customer class total sales DESC, customer name total sales DESC
+        final_data.sort(key=lambda x: (
+            customer_class_totals.get(x['derived_customer_class'] or 'Unknown Class', 0),
+            customer_name_totals.get(f"{x['derived_customer_class'] or 'Unknown Class'}_{x['customer_name'] or 'Unknown Customer'}", 0)
+        ), reverse=True)
         return final_data
 
     def get_sales_summary(self, username: str) -> Dict[str, Any]:

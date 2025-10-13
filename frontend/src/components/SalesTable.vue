@@ -5,8 +5,8 @@
                 <tr>
                     <th v-if="isHospitality">Brand</th>
                     <th v-if="isHospitality">Flag</th>
-                    <th>Customer Name</th>
                     <th v-if="!isHospitality">Customer Class</th>
+                    <th v-if="!isHospitality">Customer Name</th>
                     <th>Q1 Sales</th>
                     <th>Q2 Sales</th>
                     <th>Q3 Sales</th>
@@ -21,103 +21,147 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Regular Sales Rows -->
-                <tr
-                    v-for="sale in sales"
-                    :key="`${sale.customer_name}-${sale.brand || 'null'}-${
-                        sale.flag || 'null'
-                    }`"
-                >
-                    <td v-if="isHospitality">{{ sale.brand || "N/A" }}</td>
-                    <td v-if="isHospitality">{{ sale.flag || "N/A" }}</td>
-                    <td class="font-medium">
-                        {{ sale.customer_name || "N/A" }}
-                    </td>
-                    <td v-if="!isHospitality">{{ sale.derived_customer_class || "N/A" }}</td>
-                    <td class="text-right">
-                        ${{ formatCurrency(sale.q1_sales) }}
-                    </td>
-                    <td class="text-right">
-                        ${{ formatCurrency(sale.q2_sales) }}
-                    </td>
-                    <td class="text-right">
-                        ${{ formatCurrency(sale.q3_sales) }}
-                    </td>
-                    <td class="text-right">
-                        ${{ formatCurrency(sale.q4_sales) }}
-                    </td>
-                    <td class="text-right">
-                        ${{ formatCurrency(sale.zero_perc_sales_total) }}
-                    </td>
-                    <td class="text-right font-semibold">
-                        ${{ formatCurrency(sale.total_sales) }}
-                    </td>
-                    <td class="text-right">
-                        <span
-                            :class="
-                                getZeroPercentClass(
-                                    sale.zero_perc_sales_percent
-                                )
-                            "
-                        >
-                            {{
-                                formatPercentage(sale.zero_perc_sales_percent)
-                            }}%
-                        </span>
-                    </td>
-                    <td :class="getCellClass(sale, 1)">
-                        <BudgetInput
-                            :value="getBudgetValue(sale, 1)"
-                            :cell-class="getCellClass(sale, 1)"
-                            @change="
-                                (event) => handleBudgetChange(event, sale, 1)
-                            "
-                            @blur="(event) => handleBudgetBlur(event, sale, 1)"
-                            @input="
-                                (event) => handleBudgetInput(event, sale, 1)
-                            "
-                        />
-                    </td>
-                    <td :class="getCellClass(sale, 2)">
-                        <BudgetInput
-                            :value="getBudgetValue(sale, 2)"
-                            :cell-class="getCellClass(sale, 2)"
-                            @change="
-                                (event) => handleBudgetChange(event, sale, 2)
-                            "
-                            @blur="(event) => handleBudgetBlur(event, sale, 2)"
-                            @input="
-                                (event) => handleBudgetInput(event, sale, 2)
-                            "
-                        />
-                    </td>
-                    <td :class="getCellClass(sale, 3)">
-                        <BudgetInput
-                            :value="getBudgetValue(sale, 3)"
-                            :cell-class="getCellClass(sale, 3)"
-                            @change="
-                                (event) => handleBudgetChange(event, sale, 3)
-                            "
-                            @blur="(event) => handleBudgetBlur(event, sale, 3)"
-                            @input="
-                                (event) => handleBudgetInput(event, sale, 3)
-                            "
-                        />
-                    </td>
-                    <td :class="getCellClass(sale, 4)">
-                        <BudgetInput
-                            :value="getBudgetValue(sale, 4)"
-                            :cell-class="getCellClass(sale, 4)"
-                            @change="
-                                (event) => handleBudgetChange(event, sale, 4)
-                            "
-                            @blur="(event) => handleBudgetBlur(event, sale, 4)"
-                            @input="
-                                (event) => handleBudgetInput(event, sale, 4)
-                            "
-                        />
-                    </td>
-                </tr>
+                <!-- Grouped Sales Rows with Subtotals -->
+                <template v-for="item in groupedSalesData" :key="item.isSubtotal ? `subtotal-${item.groupKey}` : `${item.customer_name}-${item.brand || 'null'}-${item.flag || 'null'}`">
+                    <!-- Regular Sales Row -->
+                    <tr v-if="!item.isSubtotal">
+                        <td v-if="isHospitality">{{ item.brand || "N/A" }}</td>
+                        <td v-if="isHospitality">{{ item.flag || "N/A" }}</td>
+                        <td v-if="!isHospitality">{{ item.derived_customer_class || "N/A" }}</td>
+                        <td v-if="!isHospitality" class="font-medium">
+                            {{ item.customer_name || "N/A" }}
+                        </td>
+                        <td class="text-right">
+                            ${{ formatCurrency(item.q1_sales) }}
+                        </td>
+                        <td class="text-right">
+                            ${{ formatCurrency(item.q2_sales) }}
+                        </td>
+                        <td class="text-right">
+                            ${{ formatCurrency(item.q3_sales) }}
+                        </td>
+                        <td class="text-right">
+                            ${{ formatCurrency(item.q4_sales) }}
+                        </td>
+                        <td class="text-right">
+                            ${{ formatCurrency(item.zero_perc_sales_total) }}
+                        </td>
+                        <td class="text-right font-semibold">
+                            ${{ formatCurrency(item.total_sales) }}
+                        </td>
+                        <td class="text-right">
+                            <span
+                                :class="
+                                    getZeroPercentClass(
+                                        item.zero_perc_sales_percent
+                                    )
+                                "
+                            >
+                                {{
+                                    formatPercentage(item.zero_perc_sales_percent)
+                                }}%
+                            </span>
+                        </td>
+                        <td :class="getCellClass(item, 1)">
+                            <BudgetInput
+                                :value="getBudgetValue(item, 1)"
+                                :cell-class="getCellClass(item, 1)"
+                                @change="
+                                    (event) => handleBudgetChange(event, item, 1)
+                                "
+                                @blur="(event) => handleBudgetBlur(event, item, 1)"
+                                @input="
+                                    (event) => handleBudgetInput(event, item, 1)
+                                "
+                            />
+                        </td>
+                        <td :class="getCellClass(item, 2)">
+                            <BudgetInput
+                                :value="getBudgetValue(item, 2)"
+                                :cell-class="getCellClass(item, 2)"
+                                @change="
+                                    (event) => handleBudgetChange(event, item, 2)
+                                "
+                                @blur="(event) => handleBudgetBlur(event, item, 2)"
+                                @input="
+                                    (event) => handleBudgetInput(event, item, 2)
+                                "
+                            />
+                        </td>
+                        <td :class="getCellClass(item, 3)">
+                            <BudgetInput
+                                :value="getBudgetValue(item, 3)"
+                                :cell-class="getCellClass(item, 3)"
+                                @change="
+                                    (event) => handleBudgetChange(event, item, 3)
+                                "
+                                @blur="(event) => handleBudgetBlur(event, item, 3)"
+                                @input="
+                                    (event) => handleBudgetInput(event, item, 3)
+                                "
+                            />
+                        </td>
+                        <td :class="getCellClass(item, 4)">
+                            <BudgetInput
+                                :value="getBudgetValue(item, 4)"
+                                :cell-class="getCellClass(item, 4)"
+                                @change="
+                                    (event) => handleBudgetChange(event, item, 4)
+                                "
+                                @blur="(event) => handleBudgetBlur(event, item, 4)"
+                                @input="
+                                    (event) => handleBudgetInput(event, item, 4)
+                                "
+                            />
+                        </td>
+                    </tr>
+                    
+                    <!-- Subtotal Row -->
+                    <tr v-else class="bg-blue-50 border-t-2 border-blue-200">
+                        <td v-if="isHospitality" class="font-bold text-blue-800">
+                            {{ item.groupKey }} Total
+                        </td>
+                        <td v-if="isHospitality"></td>
+                        <td v-if="!isHospitality" class="font-bold text-blue-800">
+                            {{ item.groupKey }} Total
+                        </td>
+                        <td v-if="!isHospitality"></td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q1_sales) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q2_sales) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q3_sales) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q4_sales) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.zero_perc_sales_total) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.total_sales) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            <span
+                                :class="
+                                    getZeroPercentClass(
+                                        item.zero_perc_sales_percent
+                                    )
+                                "
+                            >
+                                {{
+                                    formatPercentage(item.zero_perc_sales_percent)
+                                }}%
+                            </span>
+                        </td>
+                        <td colspan="4" class="text-center text-blue-600 font-medium">
+                            Subtotal
+                        </td>
+                    </tr>
+                </template>
 
                 <!-- Custom Budget Rows -->
                 <tr
@@ -127,7 +171,8 @@
                 >
                     <td v-if="isHospitality">{{ budget.brand || "N/A" }}</td>
                     <td v-if="isHospitality">{{ budget.flag || "N/A" }}</td>
-                    <td class="font-medium">
+                    <td v-if="!isHospitality">{{ budget.customer_class || "N/A" }}</td>
+                    <td v-if="!isHospitality" class="font-medium">
                         <div class="flex items-center gap-2">
                             {{ budget.customer_name || "N/A" }}
                             <button
@@ -152,7 +197,6 @@
                             </button>
                         </div>
                     </td>
-                    <td v-if="!isHospitality">{{ budget.customer_class || "N/A" }}</td>
                     <td class="text-right">$0.00</td>
                     <td class="text-right">$0.00</td>
                     <td class="text-right">$0.00</td>
@@ -227,6 +271,7 @@
 </template>
 
 <script setup>
+import { computed } from "vue";
 import BudgetInput from "./BudgetInput.vue";
 import {
     formatCurrency,
@@ -271,5 +316,57 @@ const props = defineProps({
         type: Boolean,
         required: true,
     },
+});
+
+// Group sales data by Brand (hospitality) or Customer Class (non-hospitality)
+// Maintains the backend sort order: Brand DESC, Flag DESC, Customer Name DESC for hospitality
+const groupedSalesData = computed(() => {
+    const groups = {};
+    const groupOrder = []; // Track order of groups as they appear in the data
+    
+    props.sales.forEach(sale => {
+        const groupKey = props.isHospitality 
+            ? (sale.brand || 'Unknown Brand')
+            : (sale.derived_customer_class || 'Unknown Class');
+        
+        if (!groups[groupKey]) {
+            groups[groupKey] = [];
+            groupOrder.push(groupKey); // Track first occurrence order
+        }
+        groups[groupKey].push(sale);
+    });
+    
+    // Convert to array with subtotals, maintaining the order from backend
+    const result = [];
+    groupOrder.forEach(groupKey => {
+        const groupSales = groups[groupKey];
+        
+        // Add all sales in this group (already sorted by backend)
+        groupSales.forEach(sale => {
+            result.push({ ...sale, isSubtotal: false });
+        });
+        
+        // Calculate subtotal for this group
+        const subtotal = {
+            isSubtotal: true,
+            groupKey,
+            q1_sales: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.q1_sales) || 0), 0),
+            q2_sales: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.q2_sales) || 0), 0),
+            q3_sales: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.q3_sales) || 0), 0),
+            q4_sales: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.q4_sales) || 0), 0),
+            zero_perc_sales_total: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.zero_perc_sales_total) || 0), 0),
+            total_sales: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.total_sales) || 0), 0),
+            zero_perc_sales_percent: 0 // Will be calculated
+        };
+        
+        // Calculate zero percent percentage for subtotal
+        subtotal.zero_perc_sales_percent = subtotal.total_sales > 0 
+            ? (subtotal.zero_perc_sales_total / subtotal.total_sales) * 100 
+            : 0;
+            
+        result.push(subtotal);
+    });
+    
+    return result;
 });
 </script>

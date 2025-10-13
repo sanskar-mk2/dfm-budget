@@ -31,7 +31,7 @@ provide('addBudgetModal', {
         <div v-if="isAuthenticated" class="navbar bg-base-200 shadow-lg">
             <div class="navbar-start">
                 <RouterLink to="/" class="btn btn-ghost text-xl"
-                    >Budget App</RouterLink
+                    >Budget 2026</RouterLink
                 >
             </div>
 

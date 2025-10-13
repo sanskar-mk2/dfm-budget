@@ -41,6 +41,11 @@ const {
     createCustomBudget,
     deleteCustomBudget,
     getCustomBudgets,
+    getTotalQ1Budget,
+    getTotalQ2Budget,
+    getTotalQ3Budget,
+    getTotalQ4Budget,
+    getTotalBudget,
     autosuggestData,
     cleanup,
 } = useBudgetData();
@@ -55,6 +60,7 @@ const closeModal = () => {
 };
 
 const handleCustomBudgetCreated = async (budgetData) => {
+    console.log("handleCustomBudgetCreated called with:", budgetData);
     try {
         await createCustomBudget(budgetData);
         console.log("Custom budget created successfully");
@@ -153,6 +159,11 @@ onUnmounted(() => {
                 :get-total-sales="getTotalSales"
                 :get-total-zero-percent="getTotalZeroPercent"
                 :get-zero-percent-rate="getZeroPercentRate"
+                :get-total-q1-budget="getTotalQ1Budget"
+                :get-total-q2-budget="getTotalQ2Budget"
+                :get-total-q3-budget="getTotalQ3Budget"
+                :get-total-q4-budget="getTotalQ4Budget"
+                :get-total-budget="getTotalBudget"
             />
         </div>
 

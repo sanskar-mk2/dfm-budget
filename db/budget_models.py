@@ -10,7 +10,7 @@ class Budget(SQLModel, table=True):
     salesperson_name: str = Field(max_length=255, description="Salesperson Name")
     brand: str | None = Field(default=None, max_length=255, description="Brand")
     flag: str | None = Field(default=None, max_length=255, description="Flag")
-    customer_name: str = Field(max_length=255, description="Customer Name")
+    customer_name: str | None = Field(default=None, max_length=255, description="Customer Name")
     customer_class: str = Field(max_length=255, description="Customer Class")
     quarter_1_sales: float = Field(default=0.0, description="Quarter 1 Sales")
     quarter_2_sales: float = Field(default=0.0, description="Quarter 2 Sales")

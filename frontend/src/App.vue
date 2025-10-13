@@ -1,10 +1,14 @@
 <script setup>
-import { RouterLink, RouterView } from "vue-router";
+import { RouterLink, RouterView, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { computed, ref, provide } from "vue";
 
 const authStore = useAuthStore();
+const route = useRoute();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
+
+// Check if current route is admin dashboard (not individual salesperson view)
+const isAdminView = computed(() => route.name === 'admin');
 
 // Modal state for custom budget
 const isAddBudgetModalOpen = ref(false);
@@ -36,7 +40,11 @@ provide('addBudgetModal', {
             </div>
 
             <div class="navbar-end">
-                <button @click="openAddBudgetModal" class="btn btn-primary mr-2">
+                <button 
+                    v-if="!isAdminView" 
+                    @click="openAddBudgetModal" 
+                    class="btn btn-primary mr-2"
+                >
                     Add Custom Budget
                 </button>
                 <div class="dropdown dropdown-end">

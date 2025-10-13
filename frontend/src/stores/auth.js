@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import router from "@/router";
 
 export const useAuthStore = defineStore("auth", () => {
     // State
@@ -8,6 +9,7 @@ export const useAuthStore = defineStore("auth", () => {
     const salesperson = ref(
         JSON.parse(localStorage.getItem("salesperson") || "null")
     );
+    const isAdmin = ref(JSON.parse(localStorage.getItem("isAdmin") || "false"));
     const loading = ref(false);
     const error = ref(null);
 
@@ -15,6 +17,7 @@ export const useAuthStore = defineStore("auth", () => {
     const isAuthenticated = computed(() => !!token.value);
     const currentUser = computed(() => user.value);
     const currentSalesperson = computed(() => salesperson.value);
+    const adminStatus = computed(() => isAdmin.value);
 
     // Actions
     const login = async (username, password) => {
@@ -42,10 +45,15 @@ export const useAuthStore = defineStore("auth", () => {
             token.value = data.access_token;
             user.value = { username };
             salesperson.value = data.salesperson || null;
+            isAdmin.value = data.is_admin || false;
 
             // Persist to localStorage
             localStorage.setItem("token", data.access_token);
             localStorage.setItem("user", JSON.stringify({ username }));
+            localStorage.setItem(
+                "isAdmin",
+                JSON.stringify(data.is_admin || false)
+            );
             if (data.salesperson) {
                 localStorage.setItem(
                     "salesperson",
@@ -66,12 +74,17 @@ export const useAuthStore = defineStore("auth", () => {
         token.value = null;
         user.value = null;
         salesperson.value = null;
+        isAdmin.value = false;
         error.value = null;
 
         // Clear localStorage
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         localStorage.removeItem("salesperson");
+        localStorage.removeItem("isAdmin");
+
+        // Navigate to login page
+        router.push("/login");
     };
 
     const clearError = () => {
@@ -108,6 +121,7 @@ export const useAuthStore = defineStore("auth", () => {
         token,
         user,
         salesperson,
+        isAdmin,
         loading,
         error,
 
@@ -115,6 +129,7 @@ export const useAuthStore = defineStore("auth", () => {
         isAuthenticated,
         currentUser,
         currentSalesperson,
+        adminStatus,
 
         // Actions
         login,

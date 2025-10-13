@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from controllers.auth_controller import router as auth_router
 from controllers.sales_controller import router as sales_router
 from controllers.budget_controller import router as budget_router
+from controllers.admin_controller import router as admin_router
 from middlewares.auth_middleware import AuthMiddleware
 from constants import ALLOWED_ORIGINS
 
@@ -16,6 +17,7 @@ from constants import ALLOWED_ORIGINS
 async def lifespan(app: FastAPI):
     # startup
     from db.budget_models import init_db
+
     init_db()
     yield
     # shutdown
@@ -35,4 +37,5 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(sales_router)
 app.include_router(budget_router)
+app.include_router(admin_router)
 app.add_middleware(AuthMiddleware)

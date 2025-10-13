@@ -3,6 +3,7 @@ from sqlmodel import Session
 from db.core import get_readonly_session, get_session
 from servies.budget_service import BudgetService
 from servies.sales_service import SalesService
+from servies.admin_service import AdminService
 from typing import Dict, Any, List
 from pydantic import BaseModel
 
@@ -16,7 +17,7 @@ class BudgetCreate(BaseModel):
     salesperson_name: str
     brand: str | None = None
     flag: str | None = None
-    customer_name: str
+    customer_name: str | None = None
     customer_class: str
     quarter_1_sales: float = 0.0
     quarter_2_sales: float = 0.0
@@ -179,10 +180,7 @@ async def get_autosuggest_data(
 
         return {
             "success": True,
-            "data": {
-                "customer_classes": customer_classes,
-                "brands": brands
-            }
+            "data": {"customer_classes": customer_classes, "brands": brands},
         }
 
     except Exception as e:
@@ -251,4 +249,342 @@ async def generate_budget_from_sales(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error generating budget from sales: {str(e)}"
+        )
+
+
+@router.get("/budget/{salesperson_id}")
+async def get_salesperson_budgets(
+    salesperson_id: int, request: Request, db: Session = Depends(get_readonly_session)
+) -> Dict[str, Any]:
+    """Get all budgets for a specific salesperson (admin only)"""
+    try:
+        # Get username from request state (set by auth middleware)
+        username = request.state.user["username"]
+
+        # Initialize admin service to check admin privileges
+        admin_service = AdminService(db)
+
+        # Check if user is admin
+        if not admin_service.is_admin(username):
+            raise HTTPException(
+                status_code=403, detail="Access denied. Admin privileges required."
+            )
+
+        # Get salesperson info
+        from db.dfm_reflect import Salesperson
+        from sqlmodel import select
+
+        salesperson = db.exec(
+            select(Salesperson).where(Salesperson.salesman_no == salesperson_id)
+        ).first()
+
+        if not salesperson:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Salesperson with ID {salesperson_id} not found",
+            )
+
+        # Get budgets
+        budget_service = BudgetService(db)
+        budgets = budget_service.get_budgets_by_salesperson(salesperson_id)
+        summary = budget_service.get_budget_summary(salesperson_id)
+
+        return {
+            "success": True,
+            "data": budgets,
+            "summary": summary,
+            "salesperson_info": {
+                "salesperson_id": salesperson_id,
+                "salesperson_name": salesperson.salesman_name,
+                "role": salesperson.role or "Unknown",
+            },
+            "total_records": len(budgets),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching salesperson budget data: {str(e)}"
+        )
+
+
+@router.post("/budget/{salesperson_id}")
+async def create_salesperson_budget(
+    salesperson_id: int,
+    budget_data: BudgetCreate,
+    request: Request,
+    db: Session = Depends(get_session),
+) -> Dict[str, Any]:
+    """Create a new budget entry for a specific salesperson (admin only)"""
+    try:
+        # Get username from request state (set by auth middleware)
+        username = request.state.user["username"]
+
+        # Initialize admin service to check admin privileges
+        admin_service = AdminService(db)
+
+        # Check if user is admin
+        if not admin_service.is_admin(username):
+            raise HTTPException(
+                status_code=403, detail="Access denied. Admin privileges required."
+            )
+
+        # Verify salesperson exists
+        from db.dfm_reflect import Salesperson
+        from sqlmodel import select
+
+        salesperson = db.exec(
+            select(Salesperson).where(Salesperson.salesman_no == salesperson_id)
+        ).first()
+
+        if not salesperson:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Salesperson with ID {salesperson_id} not found",
+            )
+
+        # Override the salesperson_id in the budget data
+        budget_data_dict = budget_data.dict()
+        budget_data_dict["salesperson_id"] = salesperson_id
+        budget_data_dict["salesperson_name"] = salesperson.salesman_name
+
+        budget_service = BudgetService(db)
+        budget = budget_service.create_budget(budget_data_dict)
+
+        return {
+            "success": True,
+            "data": {
+                "id": budget.id,
+                "salesperson_id": budget.salesperson_id,
+                "salesperson_name": budget.salesperson_name,
+                "brand": budget.brand,
+                "flag": budget.flag,
+                "customer_name": budget.customer_name,
+                "customer_class": budget.customer_class,
+                "quarter_1_sales": budget.quarter_1_sales,
+                "quarter_2_sales": budget.quarter_2_sales,
+                "quarter_3_sales": budget.quarter_3_sales,
+                "quarter_4_sales": budget.quarter_4_sales,
+                "is_custom": budget.is_custom,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error creating salesperson budget: {str(e)}"
+        )
+
+
+@router.put("/budget/{salesperson_id}/{budget_id}")
+async def update_salesperson_budget(
+    salesperson_id: int,
+    budget_id: int,
+    budget_data: BudgetUpdate,
+    request: Request,
+    db: Session = Depends(get_session),
+) -> Dict[str, Any]:
+    """Update an existing budget entry for a specific salesperson (admin only)"""
+    try:
+        # Get username from request state (set by auth middleware)
+        username = request.state.user["username"]
+
+        # Initialize admin service to check admin privileges
+        admin_service = AdminService(db)
+
+        # Check if user is admin
+        if not admin_service.is_admin(username):
+            raise HTTPException(
+                status_code=403, detail="Access denied. Admin privileges required."
+            )
+
+        # Verify salesperson exists
+        from db.dfm_reflect import Salesperson
+        from sqlmodel import select
+
+        salesperson = db.exec(
+            select(Salesperson).where(Salesperson.salesman_no == salesperson_id)
+        ).first()
+
+        if not salesperson:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Salesperson with ID {salesperson_id} not found",
+            )
+
+        budget_service = BudgetService(db)
+        budget = budget_service.update_budget(
+            budget_id, budget_data.dict(exclude_unset=True)
+        )
+
+        if not budget:
+            raise HTTPException(status_code=404, detail="Budget not found")
+
+        return {
+            "success": True,
+            "data": {
+                "id": budget.id,
+                "salesperson_id": budget.salesperson_id,
+                "salesperson_name": budget.salesperson_name,
+                "brand": budget.brand,
+                "flag": budget.flag,
+                "customer_name": budget.customer_name,
+                "customer_class": budget.customer_class,
+                "quarter_1_sales": budget.quarter_1_sales,
+                "quarter_2_sales": budget.quarter_2_sales,
+                "quarter_3_sales": budget.quarter_3_sales,
+                "quarter_4_sales": budget.quarter_4_sales,
+                "is_custom": budget.is_custom,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error updating salesperson budget: {str(e)}"
+        )
+
+
+@router.delete("/budget/{salesperson_id}/{budget_id}")
+async def delete_salesperson_budget(
+    salesperson_id: int,
+    budget_id: int,
+    request: Request,
+    db: Session = Depends(get_session),
+) -> Dict[str, Any]:
+    """Delete a budget entry for a specific salesperson (admin only)"""
+    try:
+        # Get username from request state (set by auth middleware)
+        username = request.state.user["username"]
+
+        # Initialize admin service to check admin privileges
+        admin_service = AdminService(db)
+
+        # Check if user is admin
+        if not admin_service.is_admin(username):
+            raise HTTPException(
+                status_code=403, detail="Access denied. Admin privileges required."
+            )
+
+        # Verify salesperson exists
+        from db.dfm_reflect import Salesperson
+        from sqlmodel import select
+
+        salesperson = db.exec(
+            select(Salesperson).where(Salesperson.salesman_no == salesperson_id)
+        ).first()
+
+        if not salesperson:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Salesperson with ID {salesperson_id} not found",
+            )
+
+        budget_service = BudgetService(db)
+        success = budget_service.delete_budget(budget_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Budget not found")
+
+        return {"success": True, "message": "Budget deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting salesperson budget: {str(e)}"
+        )
+
+
+@router.post("/budget/{salesperson_id}/generate-from-sales")
+async def generate_salesperson_budget_from_sales(
+    salesperson_id: int, request: Request, db: Session = Depends(get_session)
+) -> Dict[str, Any]:
+    """Generate budget entries from sales data for a specific salesperson (admin only)"""
+    try:
+        # Get username from request state (set by auth middleware)
+        username = request.state.user["username"]
+
+        # Initialize admin service to check admin privileges
+        admin_service = AdminService(db)
+
+        # Check if user is admin
+        if not admin_service.is_admin(username):
+            raise HTTPException(
+                status_code=403, detail="Access denied. Admin privileges required."
+            )
+
+        # Verify salesperson exists and get their info
+        from db.dfm_reflect import Salesperson
+        from sqlmodel import select
+
+        salesperson = db.exec(
+            select(Salesperson).where(Salesperson.salesman_no == salesperson_id)
+        ).first()
+
+        if not salesperson:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Salesperson with ID {salesperson_id} not found",
+            )
+
+        # Get sales data for this salesperson
+        sales_service = SalesService(db)
+        role = salesperson.role or ""
+        is_hospitality = role.startswith("Hospitality")
+
+        if is_hospitality:
+            sales_data = sales_service._get_hospitality_sales_data(salesperson_id)
+        else:
+            sales_data = sales_service._get_non_hospitality_sales_data(salesperson_id)
+
+        # Generate budgets from sales data
+        budget_service = BudgetService(db)
+        budgets = budget_service.generate_budget_from_sales(
+            salesperson_id, salesperson.salesman_name, sales_data
+        )
+
+        # Save budgets to database
+        created_budgets = []
+        for budget in budgets:
+            db.add(budget)
+            created_budgets.append(budget)
+
+        db.commit()
+
+        # Refresh to get IDs
+        for budget in created_budgets:
+            db.refresh(budget)
+
+        return {
+            "success": True,
+            "message": f"Generated {len(created_budgets)} budget entries from sales data",
+            "data": [
+                {
+                    "id": budget.id,
+                    "salesperson_id": budget.salesperson_id,
+                    "salesperson_name": budget.salesperson_name,
+                    "brand": budget.brand,
+                    "flag": budget.flag,
+                    "customer_name": budget.customer_name,
+                    "customer_class": budget.customer_class,
+                    "quarter_1_sales": budget.quarter_1_sales,
+                    "quarter_2_sales": budget.quarter_2_sales,
+                    "quarter_3_sales": budget.quarter_3_sales,
+                    "quarter_4_sales": budget.quarter_4_sales,
+                    "is_custom": budget.is_custom,
+                }
+                for budget in created_budgets
+            ],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating salesperson budget from sales: {str(e)}",
         )

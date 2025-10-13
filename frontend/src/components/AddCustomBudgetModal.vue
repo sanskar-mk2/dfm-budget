@@ -4,8 +4,8 @@
             <h3 class="font-bold text-lg mb-4">Add Custom Budget</h3>
             
             <form @submit.prevent="handleSubmit" class="space-y-4">
-                <!-- Customer Name (both types) -->
-                <div class="form-control">
+                <!-- Customer Name (non-hospitality only) -->
+                <div v-if="!isHospitality" class="form-control">
                     <label class="label">
                         <span class="label-text">Customer Name</span>
                     </label>
@@ -61,6 +61,7 @@
                             <span class="label-text">Brand</span>
                         </label>
                         <input
+                            ref="brandInput"
                             v-model="form.brand"
                             type="text"
                             list="brands"
@@ -157,6 +158,7 @@ const emit = defineEmits(['close', 'created', 'fetch-autosuggest']);
 
 const loading = ref(false);
 const customerNameInput = ref(null);
+const brandInput = ref(null);
 
 const form = reactive({
     customer_name: '',
@@ -178,17 +180,18 @@ const validateForm = () => {
     
     let isValid = true;
 
-    if (!form.customer_name.trim()) {
-        errors.customer_name = 'Customer name is required';
-        isValid = false;
-    }
-
     if (!props.isHospitality) {
+        // Non-hospitality validation
+        if (!form.customer_name.trim()) {
+            errors.customer_name = 'Customer name is required';
+            isValid = false;
+        }
         if (!form.customer_class.trim()) {
             errors.customer_class = 'Customer class is required';
             isValid = false;
         }
     } else {
+        // Hospitality validation
         if (!form.brand.trim()) {
             errors.brand = 'Brand is required';
             isValid = false;
@@ -203,21 +206,26 @@ const validateForm = () => {
 };
 
 const handleSubmit = async () => {
+    console.log('handleSubmit called', { isHospitality: props.isHospitality, form: { ...form } });
+    
     if (!validateForm()) {
+        console.log('Form validation failed', errors);
         return;
     }
 
+    console.log('Form validation passed, proceeding with submission');
     loading.value = true;
 
     try {
         const budgetData = {
-            customer_name: props.isHospitality ? form.customer_name.toUpperCase() : form.customer_name,
+            customer_name: props.isHospitality ? null : form.customer_name,
             customer_class: props.isHospitality ? 'Hospitality' : form.customer_class,
             brand: props.isHospitality ? form.brand.toUpperCase() : null,
             flag: props.isHospitality ? form.flag.toUpperCase() : null,
             is_custom: true
         };
 
+        console.log('Emitting budget data:', budgetData);
         // Emit the budget data to parent component
         emit('created', budgetData);
         
@@ -250,9 +258,11 @@ const resetForm = () => {
 watch(() => props.isOpen, async (isOpen) => {
     if (isOpen) {
         emit('fetch-autosuggest');
-        // Focus the customer name input after the modal is rendered
+        // Focus the appropriate input after the modal is rendered
         await nextTick();
-        if (customerNameInput.value) {
+        if (props.isHospitality && brandInput.value) {
+            brandInput.value.focus();
+        } else if (!props.isHospitality && customerNameInput.value) {
             customerNameInput.value.focus();
         }
     }

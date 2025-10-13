@@ -1,14 +1,14 @@
-import { ref } from 'vue';
-import { useAuthStore } from '@/stores/auth';
-import { useSalesData } from './useSalesData';
+import { ref, unref } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import { useSalesDataForAdmin } from "./useSalesDataForAdmin";
 
-export function useBudgetData() {
+export function useBudgetDataForAdmin(salespersonId) {
     const authStore = useAuthStore();
     const { apiCall } = authStore;
     
-    // Get hospitality status from sales data
-    const { isHospitality } = useSalesData();
-    
+    // Get hospitality status and salesperson info from sales data
+    const { isHospitality, salespersonInfo } = useSalesDataForAdmin(salespersonId);
+
     const budgets = ref([]);
     const budgetMap = ref({});
     const savingCells = ref(new Set());
@@ -16,15 +16,19 @@ export function useBudgetData() {
     const inputValues = ref({});
     const autosuggestData = ref({
         customer_classes: [],
-        brands: []
+        brands: [],
     });
 
     let autoSaveTimer = null;
 
     const fetchBudgets = async () => {
         try {
-            const response = await apiCall('http://localhost:8000/budget');
-            if (!response.ok) throw new Error('Failed to fetch budget data');
+            // Use unref to get the actual value from reactive references
+            const id = unref(salespersonId);
+            const response = await apiCall(
+                `http://localhost:8000/budget/${id}`
+            );
+            if (!response.ok) throw new Error("Failed to fetch budget data");
 
             const data = await response.json();
             budgets.value = data.data || [];
@@ -32,29 +36,31 @@ export function useBudgetData() {
             // Create map for quick lookup
             budgetMap.value = {};
             budgets.value.forEach((budget) => {
-                const key = `${budget.brand || 'null'}_${budget.flag || 'null'}_${budget.customer_name}`;
+                const key = `${budget.brand || "null"}_${
+                    budget.flag || "null"
+                }_${budget.customer_name}`;
                 budgetMap.value[key] = budget;
             });
         } catch (err) {
-            console.error('Error fetching budgets:', err);
+            console.error("Error fetching budgets:", err);
         }
     };
 
     const saveBudgetCell = async (sale, quarter, value) => {
-        const cellKey = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}_${quarter}`;
+        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
+            sale.customer_name
+        }_${quarter}`;
         savingCells.value.add(cellKey);
 
         try {
-            if (!authStore.currentSalesperson) {
-                throw new Error('Salesperson data not available');
-            }
-
-            const key = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}`;
+            const key = `${sale.brand || "null"}_${sale.flag || "null"}_${
+                sale.customer_name
+            }`;
             const existingBudget = budgetMap.value[key];
 
+            const id = unref(salespersonId);
             const budgetData = {
-                salesperson_id: authStore.currentSalesperson.salesman_no,
-                salesperson_name: authStore.currentSalesperson.salesman_name,
+                salesperson_id: id,
                 brand: sale.brand,
                 flag: sale.flag,
                 customer_name: sale.customer_name,
@@ -66,28 +72,30 @@ export function useBudgetData() {
             let response;
             if (existingBudget) {
                 response = await apiCall(
-                    `http://localhost:8000/budget/${existingBudget.id}`,
+                    `http://localhost:8000/budget/${id}/${existingBudget.id}`,
                     {
-                        method: 'PUT',
+                        method: "PUT",
                         body: JSON.stringify({
-                            [`quarter_${quarter}_sales`]: parseFloat(value) || 0,
+                            [`quarter_${quarter}_sales`]:
+                                parseFloat(value) || 0,
                         }),
                     }
                 );
             } else {
-                response = await apiCall('http://localhost:8000/budget', {
-                    method: 'POST',
+                response = await apiCall(`http://localhost:8000/budget/${id}`, {
+                    method: "POST",
                     body: JSON.stringify(budgetData),
                 });
             }
 
-            if (!response.ok) throw new Error('Failed to save budget');
+            if (!response.ok) throw new Error("Failed to save budget");
 
             const result = await response.json();
 
             // Update local state
             if (existingBudget) {
-                existingBudget[`quarter_${quarter}_sales`] = parseFloat(value) || 0;
+                existingBudget[`quarter_${quarter}_sales`] =
+                    parseFloat(value) || 0;
             } else {
                 budgetMap.value[key] = result.data;
                 budgets.value.push(result.data);
@@ -100,14 +108,16 @@ export function useBudgetData() {
             // Clear from localStorage since it's now saved
             savePendingChangesToStorage();
         } catch (err) {
-            console.error('Error saving budget:', err);
+            console.error("Error saving budget:", err);
         } finally {
             savingCells.value.delete(cellKey);
         }
     };
 
     const getBudgetValue = (sale, quarter) => {
-        const cellKey = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}_${quarter}`;
+        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
+            sale.customer_name
+        }_${quarter}`;
 
         // Return local input value if it exists (user is typing)
         if (inputValues.value.hasOwnProperty(cellKey)) {
@@ -115,16 +125,21 @@ export function useBudgetData() {
         }
 
         // Otherwise return from budget data
-        const key = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}`;
+        const key = `${sale.brand || "null"}_${sale.flag || "null"}_${
+            sale.customer_name
+        }`;
         const budget = budgetMap.value[key];
         return budget ? budget[`quarter_${quarter}_sales`] || 0 : 0;
     };
 
     const getCellClass = (sale, quarter) => {
-        const cellKey = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}_${quarter}`;
-        if (savingCells.value.has(cellKey)) return 'bg-blue-50 border-blue-300';
-        if (savedCells.value.has(cellKey)) return 'bg-green-50 border-green-300';
-        return 'hover:bg-gray-50';
+        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
+            sale.customer_name
+        }_${quarter}`;
+        if (savingCells.value.has(cellKey)) return "bg-blue-50 border-blue-300";
+        if (savedCells.value.has(cellKey))
+            return "bg-green-50 border-green-300";
+        return "hover:bg-gray-50";
     };
 
     const scheduleAutoSave = (sale, quarter, value) => {
@@ -133,14 +148,16 @@ export function useBudgetData() {
         }
 
         autoSaveTimer = setTimeout(() => {
-            if (value && value !== '0' && value !== '') {
+            if (value && value !== "0" && value !== "") {
                 saveBudgetCell(sale, quarter, value);
             }
         }, 2000);
     };
 
     const handleBudgetChange = (event, sale, quarter) => {
-        const cellKey = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}_${quarter}`;
+        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
+            sale.customer_name
+        }_${quarter}`;
         const value = event.target.value;
         inputValues.value[cellKey] = value;
 
@@ -150,7 +167,9 @@ export function useBudgetData() {
 
     const handleBudgetBlur = (event, sale, quarter) => {
         const value = event.target.value;
-        const cellKey = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}_${quarter}`;
+        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
+            sale.customer_name
+        }_${quarter}`;
 
         if (autoSaveTimer) {
             clearTimeout(autoSaveTimer);
@@ -163,31 +182,38 @@ export function useBudgetData() {
     };
 
     const handleBudgetInput = (event, sale, quarter) => {
-        const cellKey = `${sale.brand || 'null'}_${sale.flag || 'null'}_${sale.customer_name}_${quarter}`;
+        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
+            sale.customer_name
+        }_${quarter}`;
         inputValues.value[cellKey] = event.target.value;
 
-        if (event.key === 'Enter') {
+        if (event.key === "Enter") {
             event.target.blur();
         }
     };
 
     const savePendingChangesToStorage = () => {
+        const id =
+            typeof salespersonId === "function"
+                ? salespersonId()
+                : salespersonId;
         const pendingChanges = {};
         Object.keys(inputValues.value).forEach((cellKey) => {
             const value = inputValues.value[cellKey];
-            if (value && value !== '0' && value !== '') {
+            if (value && value !== "0" && value !== "") {
                 pendingChanges[cellKey] = value;
             }
         });
         localStorage.setItem(
-            'budget_pending_changes',
+            `budget_pending_changes_${id}`,
             JSON.stringify(pendingChanges)
         );
     };
 
     const loadPendingChangesFromStorage = () => {
         try {
-            const stored = localStorage.getItem('budget_pending_changes');
+            const id = unref(salespersonId);
+            const stored = localStorage.getItem(`budget_pending_changes_${id}`);
             if (stored) {
                 const pendingChanges = JSON.parse(stored);
                 Object.keys(pendingChanges).forEach((cellKey) => {
@@ -196,128 +222,109 @@ export function useBudgetData() {
                 return Object.keys(pendingChanges).length > 0;
             }
         } catch (err) {
-            console.error('Error loading pending changes:', err);
+            console.error("Error loading pending changes:", err);
         }
         return false;
     };
 
     const clearPendingChangesFromStorage = () => {
-        localStorage.removeItem('budget_pending_changes');
+        const id =
+            typeof salespersonId === "function"
+                ? salespersonId()
+                : salespersonId;
+        localStorage.removeItem(`budget_pending_changes_${id}`);
     };
 
     const fetchAutosuggestData = async () => {
         try {
-            const response = await apiCall('http://localhost:8000/budget/autosuggest');
-            if (!response.ok) throw new Error('Failed to fetch autosuggest data');
+            const response = await apiCall(
+                "http://localhost:8000/budget/autosuggest"
+            );
+            if (!response.ok)
+                throw new Error("Failed to fetch autosuggest data");
 
             const data = await response.json();
             autosuggestData.value = data.data;
         } catch (err) {
-            console.error('Error fetching autosuggest data:', err);
+            console.error("Error fetching autosuggest data:", err);
         }
     };
 
     const createCustomBudget = async (budgetData) => {
         try {
-            if (!authStore.currentSalesperson) {
-                throw new Error('Salesperson data not available');
-            }
-
+            const id = unref(salespersonId);
             const customBudgetData = {
                 ...budgetData,
-                salesperson_id: authStore.currentSalesperson.salesman_no,
-                salesperson_name: authStore.currentSalesperson.salesman_name,
+                salesperson_id: id,
+                salesperson_name: salespersonInfo.value?.salesperson_name || 'Unknown',
                 customer_class: isHospitality.value ? 'Hospitality' : budgetData.customer_class,
                 quarter_1_sales: 0,
                 quarter_2_sales: 0,
                 quarter_3_sales: 0,
                 quarter_4_sales: 0,
-                is_custom: true
+                is_custom: true,
             };
 
-            const response = await apiCall('http://localhost:8000/budget', {
-                method: 'POST',
-                body: JSON.stringify(customBudgetData),
-            });
+            const response = await apiCall(
+                `http://localhost:8000/budget/${id}`,
+                {
+                    method: "POST",
+                    body: JSON.stringify(customBudgetData),
+                }
+            );
 
-            if (!response.ok) throw new Error('Failed to create custom budget');
+            if (!response.ok) throw new Error("Failed to create custom budget");
 
             const result = await response.json();
-            
+
             // Add to local state
-            const key = `${customBudgetData.brand || 'null'}_${customBudgetData.flag || 'null'}_${customBudgetData.customer_name}`;
+            const key = `${customBudgetData.brand || "null"}_${
+                customBudgetData.flag || "null"
+            }_${customBudgetData.customer_name}`;
             budgetMap.value[key] = result.data;
             budgets.value.push(result.data);
 
             return result.data;
         } catch (err) {
-            console.error('Error creating custom budget:', err);
+            console.error("Error creating custom budget:", err);
             throw err;
         }
     };
 
     const deleteCustomBudget = async (budgetId) => {
         try {
-            const response = await apiCall(`http://localhost:8000/budget/${budgetId}`, {
-                method: 'DELETE',
-            });
+            const id = unref(salespersonId);
+            const response = await apiCall(
+                `http://localhost:8000/budget/${id}/${budgetId}`,
+                {
+                    method: "DELETE",
+                }
+            );
 
-            if (!response.ok) throw new Error('Failed to delete custom budget');
+            if (!response.ok) throw new Error("Failed to delete custom budget");
 
             // Remove from local state
-            const budgetIndex = budgets.value.findIndex(b => b.id === budgetId);
+            const budgetIndex = budgets.value.findIndex(
+                (b) => b.id === budgetId
+            );
             if (budgetIndex !== -1) {
                 const budget = budgets.value[budgetIndex];
-                const key = `${budget.brand || 'null'}_${budget.flag || 'null'}_${budget.customer_name}`;
+                const key = `${budget.brand || "null"}_${
+                    budget.flag || "null"
+                }_${budget.customer_name}`;
                 delete budgetMap.value[key];
                 budgets.value.splice(budgetIndex, 1);
             }
 
             return true;
         } catch (err) {
-            console.error('Error deleting custom budget:', err);
+            console.error("Error deleting custom budget:", err);
             throw err;
         }
     };
 
     const getCustomBudgets = () => {
-        return budgets.value.filter(budget => budget.is_custom === true);
-    };
-
-    // Budget summary calculation functions
-    const getTotalQ1Budget = () => {
-        return budgets.value.reduce(
-            (sum, budget) => sum + (parseFloat(budget.quarter_1_sales) || 0),
-            0
-        );
-    };
-
-    const getTotalQ2Budget = () => {
-        return budgets.value.reduce(
-            (sum, budget) => sum + (parseFloat(budget.quarter_2_sales) || 0),
-            0
-        );
-    };
-
-    const getTotalQ3Budget = () => {
-        return budgets.value.reduce(
-            (sum, budget) => sum + (parseFloat(budget.quarter_3_sales) || 0),
-            0
-        );
-    };
-
-    const getTotalQ4Budget = () => {
-        return budgets.value.reduce(
-            (sum, budget) => sum + (parseFloat(budget.quarter_4_sales) || 0),
-            0
-        );
-    };
-
-    const getTotalBudget = () => {
-        return budgets.value.reduce(
-            (sum, budget) => sum + (parseFloat(budget.total_sales) || 0),
-            0
-        );
+        return budgets.value.filter((budget) => budget.is_custom === true);
     };
 
     const cleanup = () => {
@@ -347,11 +354,6 @@ export function useBudgetData() {
         createCustomBudget,
         deleteCustomBudget,
         getCustomBudgets,
-        getTotalQ1Budget,
-        getTotalQ2Budget,
-        getTotalQ3Budget,
-        getTotalQ4Budget,
-        getTotalBudget,
-        cleanup
+        cleanup,
     };
 }

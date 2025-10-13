@@ -157,8 +157,17 @@
                                 }}%
                             </span>
                         </td>
-                        <td colspan="4" class="text-center text-blue-600 font-medium">
-                            Subtotal
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q1_budget) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q2_budget) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q3_budget) }}
+                        </td>
+                        <td class="text-right font-bold text-blue-800">
+                            ${{ formatCurrency(item.q4_budget) }}
                         </td>
                     </tr>
                 </template>
@@ -356,7 +365,12 @@ const groupedSalesData = computed(() => {
             q4_sales: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.q4_sales) || 0), 0),
             zero_perc_sales_total: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.zero_perc_sales_total) || 0), 0),
             total_sales: groupSales.reduce((sum, sale) => sum + (parseFloat(sale.total_sales) || 0), 0),
-            zero_perc_sales_percent: 0 // Will be calculated
+            zero_perc_sales_percent: 0, // Will be calculated
+            // Calculate budget totals for this group
+            q1_budget: groupSales.reduce((sum, sale) => sum + (parseFloat(props.getBudgetValue(sale, 1)) || 0), 0),
+            q2_budget: groupSales.reduce((sum, sale) => sum + (parseFloat(props.getBudgetValue(sale, 2)) || 0), 0),
+            q3_budget: groupSales.reduce((sum, sale) => sum + (parseFloat(props.getBudgetValue(sale, 3)) || 0), 0),
+            q4_budget: groupSales.reduce((sum, sale) => sum + (parseFloat(props.getBudgetValue(sale, 4)) || 0), 0)
         };
         
         // Calculate zero percent percentage for subtotal

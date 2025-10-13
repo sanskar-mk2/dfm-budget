@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from datetime import timedelta
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import select
-from constants import ACCESS_TOKEN_EXPIRE_MINUTES
+from constants import ACCESS_TOKEN_EXPIRE_MINUTES, SUPERADMIN, ADMIN
 from servies.auth_service import authenticate_user, create_access_token
 
 
@@ -32,9 +32,16 @@ async def login(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    response = {"access_token": access_token, "token_type": "bearer"}
+    # Check if user is admin
+    is_admin = user.salesman_id == SUPERADMIN or user.salesman_id is ADMIN
 
-    if user.salesman_id:
+    response = {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "is_admin": is_admin,
+    }
+
+    if user.salesman_id and not is_admin:
         salesperson = db.exec(
             select(Salesperson).where(Salesperson.salesman_no == user.salesman_id)
         ).first()

@@ -1,352 +1,486 @@
 <template>
-    <div class="overflow-x-auto">
-        <table class="table-md table table-zebra w-full">
-            <thead>
-                <tr>
-                    <th></th>
-                    <th v-if="isHospitality">Brand</th>
-                    <th v-if="isHospitality">Flag</th>
-                    <th v-if="!isHospitality">Customer Class</th>
-                    <th v-if="!isHospitality">Customer Name</th>
-                    <th>Q1 Sales</th>
-                    <th>Q2 Sales</th>
-                    <th>Q3 Sales</th>
-                    <th>Q4 Orders</th>
-                    <th>Total Sales</th>
-                    <th v-if="isHospitality">0% Sales (Rate)</th>
-                    <th>Budget Q1</th>
-                    <th>Budget Q2</th>
-                    <th>Budget Q3</th>
-                    <th>Budget Q4</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Grouped Sales Rows with Subtotals -->
-                <template
-                    v-for="item in groupedSalesData"
-                    :key="
-                        item.isSubtotal
-                            ? `subtotal-${item.groupKey}`
-                            : `${item.customer_name}-${item.brand || 'null'}-${
-                                  item.flag || 'null'
-                              }`
-                    "
-                >
-                    <!-- Regular Sales Row -->
-                    <tr v-if="!item.isSubtotal">
-                        <td></td>
-                        <td v-if="isHospitality">{{ item.brand || "N/A" }}</td>
-                        <td v-if="isHospitality">{{ item.flag || "N/A" }}</td>
-                        <td v-if="!isHospitality">
-                            {{ item.derived_customer_class || "N/A" }}
-                        </td>
-                        <td v-if="!isHospitality">
-                            {{ item.customer_name || "N/A" }}
-                        </td>
-                        <td class="text-right">
-                            ${{ formatCurrency(item.q1_sales) }}
-                        </td>
-                        <td class="text-right">
-                            ${{ formatCurrency(item.q2_sales) }}
-                        </td>
-                        <td class="text-right">
-                            ${{ formatCurrency(item.q3_sales) }}
-                        </td>
-                        <td class="text-right">
-                            ${{ formatCurrency(item.q4_sales) }}
-                        </td>
-                        <td class="text-right font-semibold">
-                            ${{ formatCurrency(item.total_sales) }}
-                        </td>
-                        <td v-if="isHospitality" class="text-right">
-                            ${{
-                                formatCurrency(item.zero_perc_sales_total)
-                            }}
-                            ({{
-                                formatPercentage(item.zero_perc_sales_percent)
-                            }}%)
-                        </td>
-                        <td :class="getCellClass(item, 1)">
-                            <BudgetInput
-                                :value="getBudgetValue(item, 1)"
-                                :cell-class="getCellClass(item, 1)"
-                                @change="
-                                    (event) =>
-                                        handleBudgetChange(event, item, 1)
-                                "
-                                @blur="
-                                    (event) => handleBudgetBlur(event, item, 1)
-                                "
-                                @input="
-                                    (event) => handleBudgetInput(event, item, 1)
-                                "
-                            />
-                        </td>
-                        <td :class="getCellClass(item, 2)">
-                            <BudgetInput
-                                :value="getBudgetValue(item, 2)"
-                                :cell-class="getCellClass(item, 2)"
-                                @change="
-                                    (event) =>
-                                        handleBudgetChange(event, item, 2)
-                                "
-                                @blur="
-                                    (event) => handleBudgetBlur(event, item, 2)
-                                "
-                                @input="
-                                    (event) => handleBudgetInput(event, item, 2)
-                                "
-                            />
-                        </td>
-                        <td :class="getCellClass(item, 3)">
-                            <BudgetInput
-                                :value="getBudgetValue(item, 3)"
-                                :cell-class="getCellClass(item, 3)"
-                                @change="
-                                    (event) =>
-                                        handleBudgetChange(event, item, 3)
-                                "
-                                @blur="
-                                    (event) => handleBudgetBlur(event, item, 3)
-                                "
-                                @input="
-                                    (event) => handleBudgetInput(event, item, 3)
-                                "
-                            />
-                        </td>
-                        <td :class="getCellClass(item, 4)">
-                            <BudgetInput
-                                :value="getBudgetValue(item, 4)"
-                                :cell-class="getCellClass(item, 4)"
-                                @change="
-                                    (event) =>
-                                        handleBudgetChange(event, item, 4)
-                                "
-                                @blur="
-                                    (event) => handleBudgetBlur(event, item, 4)
-                                "
-                                @input="
-                                    (event) => handleBudgetInput(event, item, 4)
-                                "
-                            />
-                        </td>
-                    </tr>
+    <div class="relative">
+        <!-- Sticky horizontal scroll bar at top -->
+        <div class="sticky top-0 z-20 bg-base-100 border-b border-gray-200">
+            <div class="overflow-x-auto h-4">
+                <div class="h-4" :style="{ width: tableWidth + 'px' }"></div>
+            </div>
+        </div>
 
-                    <!-- Subtotal Row -->
-                    <tr
-                        v-else
-                        class="bg-blue-50 border-t-2 border-b-4 border-primary"
-                    >
-                        <td
-                            colspan="3"
-                            class="font-bold text-primary text-center"
+        <!-- Main table with scroll -->
+        <div class="overflow-x-auto">
+            <table ref="tableRef" class="table-sm table w-full">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th
+                            v-if="isHospitality"
+                            class="sticky left-0 bg-base-100 z-10"
                         >
-                            {{ item.groupKey }} Total
-                        </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q1_sales) }}
-                        </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q2_sales) }}
-                        </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q3_sales) }}
-                        </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q4_sales) }}
-                        </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.total_sales) }}
+                            Brand
+                        </th>
+                        <th
+                            v-if="isHospitality"
+                            class="sticky left-16 bg-base-100 z-10"
+                        >
+                            Flag
+                        </th>
+                        <th
+                            v-if="!isHospitality"
+                            class="sticky left-0 bg-base-100 z-10"
+                        >
+                            Customer Class
+                        </th>
+                        <th
+                            v-if="!isHospitality"
+                            class="sticky left-32 bg-base-100 z-10"
+                        >
+                            Customer Name
+                        </th>
+                        <th>Q1 Sales</th>
+                        <th>Q2 Sales</th>
+                        <th>Q3 Sales</th>
+                        <th>Q4 Orders</th>
+                        <th>Total Sales</th>
+                        <th v-if="isHospitality">0% Sales (Rate)</th>
+                        <th>Budget Q1</th>
+                        <th>Budget Q2</th>
+                        <th>Budget Q3</th>
+                        <th>Budget Q4</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Grouped Sales Rows with Subtotals -->
+                    <template
+                        v-for="item in groupedSalesData"
+                        :key="
+                            item.isSubtotal
+                                ? `subtotal-${item.groupKey}`
+                                : `${item.customer_name}-${
+                                      item.brand || 'null'
+                                  }-${item.flag || 'null'}`
+                        "
+                    >
+                        <!-- Regular Sales Row -->
+                        <tr v-if="!item.isSubtotal">
+                            <td></td>
+                            <td
+                                v-if="isHospitality"
+                                class="sticky left-0 bg-base-100 z-10"
+                            >
+                                {{ item.brand || "N/A" }}
+                            </td>
+                            <td
+                                v-if="isHospitality"
+                                class="sticky left-16 bg-base-100 z-10"
+                            >
+                                {{ item.flag || "N/A" }}
+                            </td>
+                            <td
+                                v-if="!isHospitality"
+                                class="sticky left-0 bg-base-100 z-10"
+                            >
+                                {{ item.derived_customer_class || "N/A" }}
+                            </td>
+                            <td
+                                v-if="!isHospitality"
+                                class="sticky left-32 bg-base-100 z-10"
+                            >
+                                {{ item.customer_name || "N/A" }}
+                            </td>
+                            <td class="text-right">
+                                ${{ formatCurrency(item.q1_sales) }}
+                            </td>
+                            <td class="text-right">
+                                ${{ formatCurrency(item.q2_sales) }}
+                            </td>
+                            <td class="text-right">
+                                ${{ formatCurrency(item.q3_sales) }}
+                            </td>
+                            <td class="text-right">
+                                ${{ formatCurrency(item.q4_sales) }}
+                            </td>
+                            <td class="text-right font-semibold">
+                                ${{ formatCurrency(item.total_sales) }}
+                            </td>
+                            <td v-if="isHospitality" class="text-right">
+                                ${{
+                                    formatCurrency(item.zero_perc_sales_total)
+                                }}
+                                ({{
+                                    formatPercentage(
+                                        item.zero_perc_sales_percent
+                                    )
+                                }}%)
+                            </td>
+                            <td
+                                :class="getCellClass(item, 1)"
+                                class="text-right"
+                            >
+                                <BudgetInput
+                                    :value="getBudgetValue(item, 1)"
+                                    :cell-class="getCellClass(item, 1)"
+                                    @change="
+                                        (event) =>
+                                            handleBudgetChange(event, item, 1)
+                                    "
+                                    @blur="
+                                        (event) =>
+                                            handleBudgetBlur(event, item, 1)
+                                    "
+                                    @input="
+                                        (event) =>
+                                            handleBudgetInput(event, item, 1)
+                                    "
+                                />
+                            </td>
+                            <td
+                                :class="getCellClass(item, 2)"
+                                class="text-right"
+                            >
+                                <BudgetInput
+                                    :value="getBudgetValue(item, 2)"
+                                    :cell-class="getCellClass(item, 2)"
+                                    @change="
+                                        (event) =>
+                                            handleBudgetChange(event, item, 2)
+                                    "
+                                    @blur="
+                                        (event) =>
+                                            handleBudgetBlur(event, item, 2)
+                                    "
+                                    @input="
+                                        (event) =>
+                                            handleBudgetInput(event, item, 2)
+                                    "
+                                />
+                            </td>
+                            <td
+                                :class="getCellClass(item, 3)"
+                                class="text-right"
+                            >
+                                <BudgetInput
+                                    :value="getBudgetValue(item, 3)"
+                                    :cell-class="getCellClass(item, 3)"
+                                    @change="
+                                        (event) =>
+                                            handleBudgetChange(event, item, 3)
+                                    "
+                                    @blur="
+                                        (event) =>
+                                            handleBudgetBlur(event, item, 3)
+                                    "
+                                    @input="
+                                        (event) =>
+                                            handleBudgetInput(event, item, 3)
+                                    "
+                                />
+                            </td>
+                            <td
+                                :class="getCellClass(item, 4)"
+                                class="text-right"
+                            >
+                                <BudgetInput
+                                    :value="getBudgetValue(item, 4)"
+                                    :cell-class="getCellClass(item, 4)"
+                                    @change="
+                                        (event) =>
+                                            handleBudgetChange(event, item, 4)
+                                    "
+                                    @blur="
+                                        (event) =>
+                                            handleBudgetBlur(event, item, 4)
+                                    "
+                                    @input="
+                                        (event) =>
+                                            handleBudgetInput(event, item, 4)
+                                    "
+                                />
+                            </td>
+                        </tr>
+
+                        <!-- Subtotal Row -->
+                        <tr
+                            v-else
+                            class="bg-blue-50 border-t-2 border-b-4 border-primary"
+                        >
+                            <td
+                                colspan="3"
+                                class="font-bold text-secondary-content text-center sticky left-0 bg-secondary z-10"
+                            >
+                                {{ item.groupKey }} Total
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q1_sales) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q2_sales) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q3_sales) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q4_sales) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.total_sales) }}
+                            </td>
+                            <td
+                                v-if="isHospitality"
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{
+                                    formatCurrency(item.zero_perc_sales_total)
+                                }}
+                                ({{
+                                    formatPercentage(
+                                        item.zero_perc_sales_percent
+                                    )
+                                }}%)
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q1_budget) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q2_budget) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q3_budget) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
+                                ${{ formatCurrency(item.q4_budget) }}
+                            </td>
+                        </tr>
+                    </template>
+
+                    <!-- Custom Budget Rows -->
+                    <tr
+                        v-for="budget in customBudgets"
+                        :key="`custom-${budget.id}`"
+                    >
+                        <td>
+                            <button
+                                @click="handleDeleteCustomBudget(budget.id)"
+                                class="btn btn-ghost btn-xs text-error hover:bg-error hover:text-error-content"
+                                title="Delete custom budget"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                </svg>
+                            </button>
                         </td>
                         <td
                             v-if="isHospitality"
-                            class="text-right font-bold text-primary"
+                            class="sticky left-0 bg-base-100 z-10"
                         >
-                            ${{
-                                formatCurrency(item.zero_perc_sales_total)
-                            }}
-                            ({{
-                                formatPercentage(item.zero_perc_sales_percent)
-                            }}%)
+                            {{ budget.brand || "N/A" }}
                         </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q1_budget) }}
+                        <td
+                            v-if="isHospitality"
+                            class="sticky left-16 bg-base-100 z-10"
+                        >
+                            {{ budget.flag || "N/A" }}
                         </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q2_budget) }}
+                        <td
+                            v-if="!isHospitality"
+                            class="sticky left-0 bg-base-100 z-10"
+                        >
+                            {{ budget.customer_class || "N/A" }}
                         </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q3_budget) }}
+                        <td
+                            v-if="!isHospitality"
+                            class="sticky left-32 bg-base-100 z-10"
+                        >
+                            {{ budget.customer_name || "N/A" }}
                         </td>
-                        <td class="text-right font-bold text-primary">
-                            ${{ formatCurrency(item.q4_budget) }}
+                        <td class="text-right">$0.00</td>
+                        <td class="text-right">$0.00</td>
+                        <td class="text-right">$0.00</td>
+                        <td class="text-right">$0.00</td>
+                        <td class="text-right font-semibold">$0.00</td>
+                        <td v-if="isHospitality" class="text-right">
+                            $0.00 (0.00%)
+                        </td>
+                        <td :class="getCellClass(budget, 1)" class="text-right">
+                            <BudgetInput
+                                :value="getBudgetValue(budget, 1)"
+                                :cell-class="getCellClass(budget, 1)"
+                                @change="
+                                    (event) =>
+                                        handleBudgetChange(event, budget, 1)
+                                "
+                                @blur="
+                                    (event) =>
+                                        handleBudgetBlur(event, budget, 1)
+                                "
+                                @input="
+                                    (event) =>
+                                        handleBudgetInput(event, budget, 1)
+                                "
+                            />
+                        </td>
+                        <td :class="getCellClass(budget, 2)" class="text-right">
+                            <BudgetInput
+                                :value="getBudgetValue(budget, 2)"
+                                :cell-class="getCellClass(budget, 2)"
+                                @change="
+                                    (event) =>
+                                        handleBudgetChange(event, budget, 2)
+                                "
+                                @blur="
+                                    (event) =>
+                                        handleBudgetBlur(event, budget, 2)
+                                "
+                                @input="
+                                    (event) =>
+                                        handleBudgetInput(event, budget, 2)
+                                "
+                            />
+                        </td>
+                        <td :class="getCellClass(budget, 3)" class="text-right">
+                            <BudgetInput
+                                :value="getBudgetValue(budget, 3)"
+                                :cell-class="getCellClass(budget, 3)"
+                                @change="
+                                    (event) =>
+                                        handleBudgetChange(event, budget, 3)
+                                "
+                                @blur="
+                                    (event) =>
+                                        handleBudgetBlur(event, budget, 3)
+                                "
+                                @input="
+                                    (event) =>
+                                        handleBudgetInput(event, budget, 3)
+                                "
+                            />
+                        </td>
+                        <td :class="getCellClass(budget, 4)" class="text-right">
+                            <BudgetInput
+                                :value="getBudgetValue(budget, 4)"
+                                :cell-class="getCellClass(budget, 4)"
+                                @change="
+                                    (event) =>
+                                        handleBudgetChange(event, budget, 4)
+                                "
+                                @blur="
+                                    (event) =>
+                                        handleBudgetBlur(event, budget, 4)
+                                "
+                                @input="
+                                    (event) =>
+                                        handleBudgetInput(event, budget, 4)
+                                "
+                            />
                         </td>
                     </tr>
-                </template>
 
-                <!-- Custom Budget Rows -->
-                <tr
-                    v-for="budget in customBudgets"
-                    :key="`custom-${budget.id}`"
-                    class="bg-amber-50/30"
-                >
-                    <td>
-                        <button
-                            @click="handleDeleteCustomBudget(budget.id)"
-                            class="btn btn-ghost btn-xs text-error hover:bg-error hover:text-error-content"
-                            title="Delete custom budget"
+                    <!-- Total Row -->
+                    <tr class="border-t-4 border-gray-400">
+                        <td
+                            colspan="3"
+                            v-if="isHospitality"
+                            class="font-bold bg-primary text-center text-primary-content text-md sticky left-0 z-10"
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="h-4 w-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                            </svg>
-                        </button>
-                    </td>
-                    <td v-if="isHospitality">{{ budget.brand || "N/A" }}</td>
-                    <td v-if="isHospitality">{{ budget.flag || "N/A" }}</td>
-                    <td v-if="!isHospitality">
-                        {{ budget.customer_class || "N/A" }}
-                    </td>
-                    <td v-if="!isHospitality">
-                        {{ budget.customer_name || "N/A" }}
-                    </td>
-                    <td class="text-right">$0.00</td>
-                    <td class="text-right">$0.00</td>
-                    <td class="text-right">$0.00</td>
-                    <td class="text-right">$0.00</td>
-                    <td class="text-right font-semibold">$0.00</td>
-                    <td v-if="isHospitality" class="text-right">
-                        $0.00 (0.00%)
-                    </td>
-                    <td :class="getCellClass(budget, 1)">
-                        <BudgetInput
-                            :value="getBudgetValue(budget, 1)"
-                            :cell-class="getCellClass(budget, 1)"
-                            @change="
-                                (event) => handleBudgetChange(event, budget, 1)
-                            "
-                            @blur="
-                                (event) => handleBudgetBlur(event, budget, 1)
-                            "
-                            @input="
-                                (event) => handleBudgetInput(event, budget, 1)
-                            "
-                        />
-                    </td>
-                    <td :class="getCellClass(budget, 2)">
-                        <BudgetInput
-                            :value="getBudgetValue(budget, 2)"
-                            :cell-class="getCellClass(budget, 2)"
-                            @change="
-                                (event) => handleBudgetChange(event, budget, 2)
-                            "
-                            @blur="
-                                (event) => handleBudgetBlur(event, budget, 2)
-                            "
-                            @input="
-                                (event) => handleBudgetInput(event, budget, 2)
-                            "
-                        />
-                    </td>
-                    <td :class="getCellClass(budget, 3)">
-                        <BudgetInput
-                            :value="getBudgetValue(budget, 3)"
-                            :cell-class="getCellClass(budget, 3)"
-                            @change="
-                                (event) => handleBudgetChange(event, budget, 3)
-                            "
-                            @blur="
-                                (event) => handleBudgetBlur(event, budget, 3)
-                            "
-                            @input="
-                                (event) => handleBudgetInput(event, budget, 3)
-                            "
-                        />
-                    </td>
-                    <td :class="getCellClass(budget, 4)">
-                        <BudgetInput
-                            :value="getBudgetValue(budget, 4)"
-                            :cell-class="getCellClass(budget, 4)"
-                            @change="
-                                (event) => handleBudgetChange(event, budget, 4)
-                            "
-                            @blur="
-                                (event) => handleBudgetBlur(event, budget, 4)
-                            "
-                            @input="
-                                (event) => handleBudgetInput(event, budget, 4)
-                            "
-                        />
-                    </td>
-                </tr>
-
-                <!-- Total Row -->
-                <tr class="bg-gray-100 border-t-4 border-gray-400">
-                    <td></td>
-                    <td v-if="isHospitality" class="font-bold text-lg">
-                        TOTAL
-                    </td>
-                    <td v-if="isHospitality"></td>
-                    <td v-if="!isHospitality" class="font-bold text-lg">
-                        TOTAL
-                    </td>
-                    <td v-if="!isHospitality"></td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ1()) }}
-                    </td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ2()) }}
-                    </td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ3()) }}
-                    </td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ4()) }}
-                    </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalSales()) }}
-                     </td>
-                     <td v-if="isHospitality" class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalZeroPercent()) }} ({{
-                             getZeroPercentRate().toFixed(2)
-                         }}%)
-                     </td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ1Budget()) }}
-                    </td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ2Budget()) }}
-                    </td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ3Budget()) }}
-                    </td>
-                    <td class="text-right font-bold text-lg">
-                        ${{ formatCurrency(getTotalQ4Budget()) }}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+                            TOTAL
+                        </td>
+                        <td
+                            v-if="!isHospitality"
+                            class="sticky left-32 text-base-content bg-primary/50 font-bold text-md z-10"
+                        ></td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ1()) }}
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ2()) }}
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ3()) }}
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ4()) }}
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalSales()) }}
+                        </td>
+                        <td
+                            v-if="isHospitality"
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalZeroPercent()) }} ({{
+                                getZeroPercentRate().toFixed(2)
+                            }}%)
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ1Budget()) }}
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ2Budget()) }}
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ3Budget()) }}
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalQ4Budget()) }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import BudgetInput from "./BudgetInput.vue";
-import {
-    formatCurrency,
-    formatPercentage,
-    getZeroPercentClass,
-} from "@/utils/formatters";
+import { formatCurrency, formatPercentage } from "@/utils/formatters";
 
 const props = defineProps({
     sales: {
@@ -426,10 +560,6 @@ const props = defineProps({
         required: false,
     },
     getTotalQ4Budget: {
-        type: Function,
-        required: false,
-    },
-    getTotalBudget: {
         type: Function,
         required: false,
     },
@@ -526,5 +656,54 @@ const groupedSalesData = computed(() => {
     });
 
     return result;
+});
+
+// Scroll synchronization
+const tableRef = ref(null);
+const tableWidth = ref(1200); // Default width
+
+const syncScroll = (source, target) => {
+    if (source && target) {
+        target.scrollLeft = source.scrollLeft;
+    }
+};
+
+onMounted(() => {
+    // Set initial table width
+    if (tableRef.value) {
+        tableWidth.value = tableRef.value.scrollWidth;
+    }
+
+    // Add scroll event listeners
+    const topScrollBar = document.querySelector(".sticky .overflow-x-auto");
+    const mainScrollContainer = document.querySelector(
+        ".overflow-x-auto:not(.sticky .overflow-x-auto)"
+    );
+
+    if (topScrollBar && mainScrollContainer) {
+        topScrollBar.addEventListener("scroll", () =>
+            syncScroll(topScrollBar, mainScrollContainer)
+        );
+        mainScrollContainer.addEventListener("scroll", () =>
+            syncScroll(mainScrollContainer, topScrollBar)
+        );
+    }
+});
+
+onUnmounted(() => {
+    // Clean up event listeners
+    const topScrollBar = document.querySelector(".sticky .overflow-x-auto");
+    const mainScrollContainer = document.querySelector(
+        ".overflow-x-auto:not(.sticky .overflow-x-auto)"
+    );
+
+    if (topScrollBar && mainScrollContainer) {
+        topScrollBar.removeEventListener("scroll", () =>
+            syncScroll(topScrollBar, mainScrollContainer)
+        );
+        mainScrollContainer.removeEventListener("scroll", () =>
+            syncScroll(mainScrollContainer, topScrollBar)
+        );
+    }
 });
 </script>

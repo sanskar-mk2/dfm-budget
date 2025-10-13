@@ -10,6 +10,7 @@
                         <span class="label-text">Customer Name</span>
                     </label>
                     <input
+                        ref="customerNameInput"
                         v-model="form.customer_name"
                         type="text"
                         placeholder="Enter customer name"
@@ -132,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue';
+import { ref, reactive, watch, onMounted, nextTick } from 'vue';
 
 const props = defineProps({
     isOpen: {
@@ -155,6 +156,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'created', 'fetch-autosuggest']);
 
 const loading = ref(false);
+const customerNameInput = ref(null);
 
 const form = reactive({
     customer_name: '',
@@ -244,10 +246,15 @@ const resetForm = () => {
     Object.keys(errors).forEach(key => errors[key] = '');
 };
 
-// Watch for modal open to fetch autosuggest data
-watch(() => props.isOpen, (isOpen) => {
+// Watch for modal open to fetch autosuggest data and focus input
+watch(() => props.isOpen, async (isOpen) => {
     if (isOpen) {
         emit('fetch-autosuggest');
+        // Focus the customer name input after the modal is rendered
+        await nextTick();
+        if (customerNameInput.value) {
+            customerNameInput.value.focus();
+        }
     }
 });
 </script>

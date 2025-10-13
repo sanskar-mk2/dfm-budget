@@ -172,20 +172,10 @@ async def get_autosuggest_data(
 ) -> Dict[str, Any]:
     """Returns customer_classes and brands for autosuggest"""
     try:
-        # Get username from request state (set by auth middleware)
-        username = request.state.user["username"]
-
-        # Get salesperson info
-        sales_service = SalesService(db)
-        user_salesperson = sales_service._get_user_salesperson(username)
-
-        if not user_salesperson:
-            raise HTTPException(status_code=404, detail="Salesperson not found")
-
         # Get autosuggest data
         budget_service = BudgetService(db)
-        customer_classes = budget_service.get_unique_customer_classes(user_salesperson.salesman_no)
-        brands = budget_service.get_unique_brands(user_salesperson.salesman_no)
+        customer_classes = budget_service.get_unique_customer_classes()
+        brands = budget_service.get_unique_brands()
 
         return {
             "success": True,

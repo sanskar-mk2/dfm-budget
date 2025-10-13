@@ -1,6 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, onUnmounted, ref, inject } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesData } from '@/composables/useSalesData';
 import { useBudgetData } from '@/composables/useBudgetData';
@@ -9,9 +8,10 @@ import SalesSummary from '@/components/SalesSummary.vue';
 import UserInfo from '@/components/UserInfo.vue';
 import AddCustomBudgetModal from '@/components/AddCustomBudgetModal.vue';
 
-const router = useRouter();
-const authStore = useAuthStore();
-const { currentUser, currentSalesperson, logout: authLogout } = authStore;
+const { currentUser, currentSalesperson } = useAuthStore();
+
+// Inject modal state from App.vue
+const addBudgetModal = inject('addBudgetModal');
 
 // Use composables for data management
 const {
@@ -45,20 +45,14 @@ const {
     cleanup
 } = useBudgetData();
 
-const logout = () => {
-    authLogout();
-    router.push('/login');
-};
 
-// Modal state
-const isModalOpen = ref(false);
-
+// Modal handlers
 const openModal = () => {
-    isModalOpen.value = true;
+    addBudgetModal.open();
 };
 
 const closeModal = () => {
-    isModalOpen.value = false;
+    addBudgetModal.close();
 };
 
 const handleCustomBudgetCreated = async (budgetData) => {
@@ -107,18 +101,6 @@ onUnmounted(() => {
 
 <template>
     <div class="container mx-auto px-4 py-8">
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold">Sales Data</h1>
-            <div class="flex gap-2">
-                <button @click="openModal" class="btn btn-primary">
-                    Add Custom Budget
-                </button>
-                <button @click="logout" class="btn btn-outline btn-error">
-                    Logout
-                </button>
-            </div>
-        </div>
 
         <!-- Loading State -->
         <div v-if="loading" class="flex justify-center">
@@ -183,7 +165,7 @@ onUnmounted(() => {
 
         <!-- Custom Budget Modal -->
         <AddCustomBudgetModal
-            :is-open="isModalOpen"
+            :is-open="addBudgetModal.isOpen.value"
             :is-hospitality="isHospitality"
             :autosuggest-data="autosuggestData"
             @close="closeModal"

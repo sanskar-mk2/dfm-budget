@@ -120,13 +120,12 @@ class BudgetService:
             "custom_budgets": custom_budgets
         }
 
-    def get_unique_customer_classes(self, salesperson_id: int) -> List[str]:
-        """Get all unique customer classes from sales data for autosuggest"""
-        query = text(f"""
+    def get_unique_customer_classes(self) -> List[str]:
+        """Get all unique customer classes from entire sales database for autosuggest"""
+        query = text("""
             SELECT DISTINCT derived_customer_class
             FROM sales 
-            WHERE salesperson = {salesperson_id}
-              AND derived_customer_class IS NOT NULL
+            WHERE derived_customer_class IS NOT NULL
               AND derived_customer_class != ''
             ORDER BY derived_customer_class
         """)
@@ -134,13 +133,12 @@ class BudgetService:
         result = self.db.exec(query)
         return [row[0] for row in result if row[0]]
 
-    def get_unique_brands(self, salesperson_id: int) -> List[str]:
-        """Get all unique brands from sales data for hospitality users"""
-        query = text(f"""
+    def get_unique_brands(self) -> List[str]:
+        """Get all unique brands from entire sales database for hospitality users"""
+        query = text("""
             SELECT DISTINCT brand
             FROM sales 
-            WHERE salesperson = {salesperson_id}
-              AND brand IS NOT NULL
+            WHERE brand IS NOT NULL
               AND brand != ''
             ORDER BY brand
         """)

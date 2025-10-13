@@ -1,10 +1,28 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { computed } from "vue";
+import { computed, ref, provide } from "vue";
 
 const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
+
+// Modal state for custom budget
+const isAddBudgetModalOpen = ref(false);
+
+const openAddBudgetModal = () => {
+    isAddBudgetModalOpen.value = true;
+};
+
+const closeAddBudgetModal = () => {
+    isAddBudgetModalOpen.value = false;
+};
+
+// Provide modal state to child components
+provide('addBudgetModal', {
+    isOpen: isAddBudgetModalOpen,
+    open: openAddBudgetModal,
+    close: closeAddBudgetModal
+});
 </script>
 
 <template>
@@ -12,62 +30,15 @@ const isAuthenticated = computed(() => authStore.isAuthenticated);
         <!-- Navigation Bar (only show when authenticated) -->
         <div v-if="isAuthenticated" class="navbar bg-base-200 shadow-lg">
             <div class="navbar-start">
-                <div class="dropdown">
-                    <div
-                        tabindex="0"
-                        role="button"
-                        class="btn btn-ghost lg:hidden"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-5 w-5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M4 6h16M4 12h8m-8 6h16"
-                            />
-                        </svg>
-                    </div>
-                    <ul
-                        tabindex="0"
-                        class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
-                    >
-                        <li><RouterLink to="/">Home</RouterLink></li>
-                        <li><RouterLink to="/about">About</RouterLink></li>
-                        <li><RouterLink to="/sales">Sales</RouterLink></li>
-                    </ul>
-                </div>
                 <RouterLink to="/" class="btn btn-ghost text-xl"
                     >Budget App</RouterLink
                 >
             </div>
 
-            <div class="navbar-center hidden lg:flex">
-                <ul class="menu menu-horizontal px-1">
-                    <li>
-                        <RouterLink to="/" class="btn btn-ghost"
-                            >Home</RouterLink
-                        >
-                    </li>
-                    <li>
-                        <RouterLink to="/about" class="btn btn-ghost"
-                            >About</RouterLink
-                        >
-                    </li>
-                    <li>
-                        <RouterLink to="/sales" class="btn btn-ghost"
-                            >Sales</RouterLink
-                        >
-                    </li>
-                </ul>
-            </div>
-
             <div class="navbar-end">
+                <button @click="openAddBudgetModal" class="btn btn-primary mr-2">
+                    Add Custom Budget
+                </button>
                 <div class="dropdown dropdown-end">
                     <div
                         tabindex="0"

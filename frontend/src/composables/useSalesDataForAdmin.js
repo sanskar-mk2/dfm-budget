@@ -21,7 +21,7 @@ export function useSalesDataForAdmin(salespersonId) {
         try {
             // Use unref to get the actual value from reactive references
             const id = unref(salespersonId);
-            const response = await apiCall(`http://localhost:8000/sales/${id}`);
+            const response = await apiCall(`/api/sales/${id}`);
 
             if (!response.ok) {
                 throw new Error("Failed to fetch sales data");

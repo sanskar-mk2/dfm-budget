@@ -19,7 +19,7 @@ export function useSalesData() {
         error.value = '';
 
         try {
-            const response = await apiCall('http://localhost:8000/sales');
+            const response = await apiCall('/api/sales');
 
             if (!response.ok) {
                 throw new Error('Failed to fetch sales data');

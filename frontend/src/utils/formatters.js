@@ -4,10 +4,10 @@ export const formatDate = (dateString) => {
 };
 
 export const formatCurrency = (amount) => {
-    if (!amount && amount !== 0) return '0.00';
+    if (!amount && amount !== 0) return '0';
     return parseFloat(amount).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
     });
 };
 

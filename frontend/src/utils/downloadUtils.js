@@ -64,16 +64,25 @@ export function formatCurrencyForCSV(value) {
 /**
  * Generate headers for sales and budget data export
  * @param {boolean} isHospitality - Whether the data is for hospitality users
+ * @param {boolean} isMixed - Whether the data contains both hospitality and non-hospitality records
  * @returns {Array} Array of header objects
  */
-export function getSalesBudgetHeaders(isHospitality) {
+export function getSalesBudgetHeaders(isHospitality, isMixed = false) {
     const baseHeaders = [
         { key: 'salesperson_name', label: 'Salesperson Name' },
         { key: 'salesperson_id', label: 'Salesperson ID' },
         { key: 'role', label: 'Role' }
     ];
     
-    if (isHospitality) {
+    if (isMixed) {
+        // For mixed data, include all possible fields
+        baseHeaders.push(
+            { key: 'brand', label: 'Brand' },
+            { key: 'flag', label: 'Flag' },
+            { key: 'derived_customer_class', label: 'Customer Class' },
+            { key: 'customer_name', label: 'Customer Name' }
+        );
+    } else if (isHospitality) {
         baseHeaders.push(
             { key: 'brand', label: 'Brand' },
             { key: 'flag', label: 'Flag' }

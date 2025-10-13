@@ -23,7 +23,7 @@ export function useBudgetData() {
 
     const fetchBudgets = async () => {
         try {
-            const response = await apiCall('http://localhost:8000/budget');
+            const response = await apiCall('/api/budget');
             if (!response.ok) throw new Error('Failed to fetch budget data');
 
             const data = await response.json();
@@ -66,7 +66,7 @@ export function useBudgetData() {
             let response;
             if (existingBudget) {
                 response = await apiCall(
-                    `http://localhost:8000/budget/${existingBudget.id}`,
+                    `/api/budget/${existingBudget.id}`,
                     {
                         method: 'PUT',
                         body: JSON.stringify({
@@ -75,7 +75,7 @@ export function useBudgetData() {
                     }
                 );
             } else {
-                response = await apiCall('http://localhost:8000/budget', {
+                response = await apiCall('/api/budget', {
                     method: 'POST',
                     body: JSON.stringify(budgetData),
                 });
@@ -207,7 +207,7 @@ export function useBudgetData() {
 
     const fetchAutosuggestData = async () => {
         try {
-            const response = await apiCall('http://localhost:8000/budget/autosuggest');
+            const response = await apiCall('/api/budget/autosuggest');
             if (!response.ok) throw new Error('Failed to fetch autosuggest data');
 
             const data = await response.json();
@@ -235,7 +235,7 @@ export function useBudgetData() {
                 is_custom: true
             };
 
-            const response = await apiCall('http://localhost:8000/budget', {
+            const response = await apiCall('/api/budget', {
                 method: 'POST',
                 body: JSON.stringify(customBudgetData),
             });
@@ -258,7 +258,7 @@ export function useBudgetData() {
 
     const deleteCustomBudget = async (budgetId) => {
         try {
-            const response = await apiCall(`http://localhost:8000/budget/${budgetId}`, {
+            const response = await apiCall(`/api/budget/${budgetId}`, {
                 method: 'DELETE',
             });
 

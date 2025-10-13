@@ -31,7 +31,7 @@
                     </div>
                 </div>
                 <div class="stat">
-                    <div class="stat-title">Q4 Sales</div>
+                    <div class="stat-title">Q4 Orders</div>
                     <div class="stat-value text-info">
                         ${{ formatCurrency(getTotalQ4()) }}
                     </div>
@@ -43,15 +43,9 @@
                     </div>
                 </div>
                 <div class="stat">
-                    <div class="stat-title">Zero % Sales</div>
-                    <div class="stat-value text-warning">
-                        ${{ formatCurrency(getTotalZeroPercent()) }}
-                    </div>
-                </div>
-                <div class="stat">
-                    <div class="stat-title">Zero % Rate</div>
-                    <div class="stat-value" :class="getZeroPercentClass(getZeroPercentRate())">
-                        {{ getZeroPercentRate().toFixed(2) }}%
+                    <div class="stat-title">0% Sales (Rate)</div>
+                    <div class="stat-value">
+                        ${{ formatCurrency(getTotalZeroPercent()) }} ({{ getZeroPercentRate().toFixed(2) }}%)
                     </div>
                 </div>
             </div>

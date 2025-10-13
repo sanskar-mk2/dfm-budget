@@ -5,9 +5,10 @@ import { useSalesDataForAdmin } from "./useSalesDataForAdmin";
 export function useBudgetDataForAdmin(salespersonId) {
     const authStore = useAuthStore();
     const { apiCall } = authStore;
-    
+
     // Get hospitality status and salesperson info from sales data
-    const { isHospitality, salespersonInfo } = useSalesDataForAdmin(salespersonId);
+    const { isHospitality, salespersonInfo } =
+        useSalesDataForAdmin(salespersonId);
 
     const budgets = ref([]);
     const budgetMap = ref({});
@@ -25,9 +26,7 @@ export function useBudgetDataForAdmin(salespersonId) {
         try {
             // Use unref to get the actual value from reactive references
             const id = unref(salespersonId);
-            const response = await apiCall(
-                `http://localhost:8000/budget/${id}`
-            );
+            const response = await apiCall(`/api/budget/${id}`);
             if (!response.ok) throw new Error("Failed to fetch budget data");
 
             const data = await response.json();
@@ -64,7 +63,9 @@ export function useBudgetDataForAdmin(salespersonId) {
                 brand: sale.brand,
                 flag: sale.flag,
                 customer_name: sale.customer_name,
-                customer_class: isHospitality.value ? 'Hospitality' : sale.derived_customer_class,
+                customer_class: isHospitality.value
+                    ? "Hospitality"
+                    : sale.derived_customer_class,
                 [`quarter_${quarter}_sales`]: parseFloat(value) || 0,
                 is_custom: sale.is_custom || false,
             };
@@ -72,7 +73,7 @@ export function useBudgetDataForAdmin(salespersonId) {
             let response;
             if (existingBudget) {
                 response = await apiCall(
-                    `http://localhost:8000/budget/${id}/${existingBudget.id}`,
+                    `/api/budget/${id}/${existingBudget.id}`,
                     {
                         method: "PUT",
                         body: JSON.stringify({
@@ -82,7 +83,7 @@ export function useBudgetDataForAdmin(salespersonId) {
                     }
                 );
             } else {
-                response = await apiCall(`http://localhost:8000/budget/${id}`, {
+                response = await apiCall(`/api/budget/${id}`, {
                     method: "POST",
                     body: JSON.stringify(budgetData),
                 });
@@ -237,9 +238,7 @@ export function useBudgetDataForAdmin(salespersonId) {
 
     const fetchAutosuggestData = async () => {
         try {
-            const response = await apiCall(
-                "http://localhost:8000/budget/autosuggest"
-            );
+            const response = await apiCall("/api/budget/autosuggest");
             if (!response.ok)
                 throw new Error("Failed to fetch autosuggest data");
 
@@ -256,8 +255,11 @@ export function useBudgetDataForAdmin(salespersonId) {
             const customBudgetData = {
                 ...budgetData,
                 salesperson_id: id,
-                salesperson_name: salespersonInfo.value?.salesperson_name || 'Unknown',
-                customer_class: isHospitality.value ? 'Hospitality' : budgetData.customer_class,
+                salesperson_name:
+                    salespersonInfo.value?.salesperson_name || "Unknown",
+                customer_class: isHospitality.value
+                    ? "Hospitality"
+                    : budgetData.customer_class,
                 quarter_1_sales: 0,
                 quarter_2_sales: 0,
                 quarter_3_sales: 0,
@@ -265,13 +267,10 @@ export function useBudgetDataForAdmin(salespersonId) {
                 is_custom: true,
             };
 
-            const response = await apiCall(
-                `http://localhost:8000/budget/${id}`,
-                {
-                    method: "POST",
-                    body: JSON.stringify(customBudgetData),
-                }
-            );
+            const response = await apiCall(`/api/budget/${id}`, {
+                method: "POST",
+                body: JSON.stringify(customBudgetData),
+            });
 
             if (!response.ok) throw new Error("Failed to create custom budget");
 
@@ -294,12 +293,9 @@ export function useBudgetDataForAdmin(salespersonId) {
     const deleteCustomBudget = async (budgetId) => {
         try {
             const id = unref(salespersonId);
-            const response = await apiCall(
-                `http://localhost:8000/budget/${id}/${budgetId}`,
-                {
-                    method: "DELETE",
-                }
-            );
+            const response = await apiCall(`/api/budget/${id}/${budgetId}`, {
+                method: "DELETE",
+            });
 
             if (!response.ok) throw new Error("Failed to delete custom budget");
 
@@ -325,6 +321,44 @@ export function useBudgetDataForAdmin(salespersonId) {
 
     const getCustomBudgets = () => {
         return budgets.value.filter((budget) => budget.is_custom === true);
+    };
+
+    // Budget total calculation functions
+    const getTotalQ1Budget = () => {
+        return budgets.value.reduce(
+            (sum, budget) => sum + (parseFloat(budget.quarter_1_sales) || 0),
+            0
+        );
+    };
+
+    const getTotalQ2Budget = () => {
+        return budgets.value.reduce(
+            (sum, budget) => sum + (parseFloat(budget.quarter_2_sales) || 0),
+            0
+        );
+    };
+
+    const getTotalQ3Budget = () => {
+        return budgets.value.reduce(
+            (sum, budget) => sum + (parseFloat(budget.quarter_3_sales) || 0),
+            0
+        );
+    };
+
+    const getTotalQ4Budget = () => {
+        return budgets.value.reduce(
+            (sum, budget) => sum + (parseFloat(budget.quarter_4_sales) || 0),
+            0
+        );
+    };
+
+    const getTotalBudget = () => {
+        return (
+            getTotalQ1Budget() +
+            getTotalQ2Budget() +
+            getTotalQ3Budget() +
+            getTotalQ4Budget()
+        );
     };
 
     const cleanup = () => {
@@ -354,6 +388,11 @@ export function useBudgetDataForAdmin(salespersonId) {
         createCustomBudget,
         deleteCustomBudget,
         getCustomBudgets,
+        getTotalQ1Budget,
+        getTotalQ2Budget,
+        getTotalQ3Budget,
+        getTotalQ4Budget,
+        getTotalBudget,
         cleanup,
     };
 }

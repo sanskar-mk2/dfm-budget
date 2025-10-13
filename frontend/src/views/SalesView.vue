@@ -4,8 +4,6 @@ import { useAuthStore } from "@/stores/auth";
 import { useSalesData } from "@/composables/useSalesData";
 import { useBudgetData } from "@/composables/useBudgetData";
 import SalesTable from "@/components/SalesTable.vue";
-import SalesSummary from "@/components/SalesSummary.vue";
-import UserInfo from "@/components/UserInfo.vue";
 import AddCustomBudgetModal from "@/components/AddCustomBudgetModal.vue";
 
 const { currentUser, currentSalesperson } = useAuthStore();
@@ -147,11 +145,6 @@ onUnmounted(() => {
                 :handle-budget-input="handleBudgetInput"
                 :handle-delete-custom-budget="handleDeleteCustomBudget"
                 :is-hospitality="isHospitality"
-            />
-
-            <!-- Sales Summary -->
-            <SalesSummary
-                :sales="sales"
                 :get-total-q1="getTotalQ1"
                 :get-total-q2="getTotalQ2"
                 :get-total-q3="getTotalQ3"
@@ -167,11 +160,6 @@ onUnmounted(() => {
             />
         </div>
 
-        <!-- User Info -->
-        <UserInfo
-            :current-user="currentUser"
-            :current-salesperson="currentSalesperson"
-        />
 
         <!-- Custom Budget Modal -->
         <AddCustomBudgetModal

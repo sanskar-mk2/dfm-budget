@@ -1,17 +1,17 @@
 <script setup>
-import { onMounted, onUnmounted, ref, inject } from 'vue';
-import { useAuthStore } from '@/stores/auth';
-import { useSalesData } from '@/composables/useSalesData';
-import { useBudgetData } from '@/composables/useBudgetData';
-import SalesTable from '@/components/SalesTable.vue';
-import SalesSummary from '@/components/SalesSummary.vue';
-import UserInfo from '@/components/UserInfo.vue';
-import AddCustomBudgetModal from '@/components/AddCustomBudgetModal.vue';
+import { onMounted, onUnmounted, ref, inject } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import { useSalesData } from "@/composables/useSalesData";
+import { useBudgetData } from "@/composables/useBudgetData";
+import SalesTable from "@/components/SalesTable.vue";
+import SalesSummary from "@/components/SalesSummary.vue";
+import UserInfo from "@/components/UserInfo.vue";
+import AddCustomBudgetModal from "@/components/AddCustomBudgetModal.vue";
 
 const { currentUser, currentSalesperson } = useAuthStore();
 
 // Inject modal state from App.vue
-const addBudgetModal = inject('addBudgetModal');
+const addBudgetModal = inject("addBudgetModal");
 
 // Use composables for data management
 const {
@@ -26,7 +26,7 @@ const {
     getTotalQ4,
     getTotalSales,
     getTotalZeroPercent,
-    getZeroPercentRate
+    getZeroPercentRate,
 } = useSalesData();
 
 const {
@@ -42,9 +42,8 @@ const {
     deleteCustomBudget,
     getCustomBudgets,
     autosuggestData,
-    cleanup
+    cleanup,
 } = useBudgetData();
-
 
 // Modal handlers
 const openModal = () => {
@@ -58,18 +57,18 @@ const closeModal = () => {
 const handleCustomBudgetCreated = async (budgetData) => {
     try {
         await createCustomBudget(budgetData);
-        console.log('Custom budget created successfully');
+        console.log("Custom budget created successfully");
     } catch (error) {
-        console.error('Error creating custom budget:', error);
+        console.error("Error creating custom budget:", error);
     }
 };
 
 const handleDeleteCustomBudget = async (budgetId) => {
     try {
         await deleteCustomBudget(budgetId);
-        console.log('Custom budget deleted successfully');
+        console.log("Custom budget deleted successfully");
     } catch (error) {
-        console.error('Error deleting custom budget:', error);
+        console.error("Error deleting custom budget:", error);
     }
 };
 
@@ -84,24 +83,23 @@ onMounted(async () => {
     // Load any pending changes from localStorage
     const hasPendingChanges = loadPendingChangesFromStorage();
     if (hasPendingChanges) {
-        console.log('Restored pending budget changes from localStorage');
+        console.log("Restored pending budget changes from localStorage");
     }
 
     // Add beforeunload listener to warn about unsaved changes
-    window.addEventListener('beforeunload', (event) => {
+    window.addEventListener("beforeunload", (event) => {
         // This will be handled by the budget composable
     });
 });
 
 onUnmounted(() => {
-    window.removeEventListener('beforeunload', () => {});
+    window.removeEventListener("beforeunload", () => {});
     cleanup();
 });
 </script>
 
 <template>
-    <div class="container mx-auto px-4 py-8">
-
+    <div class="mx-auto px-4 py-8">
         <!-- Loading State -->
         <div v-if="loading" class="flex justify-center">
             <div class="loading loading-spinner loading-lg"></div>
@@ -142,6 +140,7 @@ onUnmounted(() => {
                 :handle-budget-blur="handleBudgetBlur"
                 :handle-budget-input="handleBudgetInput"
                 :handle-delete-custom-budget="handleDeleteCustomBudget"
+                :is-hospitality="isHospitality"
             />
 
             <!-- Sales Summary -->

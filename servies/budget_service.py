@@ -145,3 +145,29 @@ class BudgetService:
         
         result = self.db.exec(query)
         return [row[0] for row in result if row[0]]
+
+    def get_unique_customer_names(self) -> List[str]:
+        """Get all unique customer names from entire sales database for autosuggest"""
+        query = text("""
+            SELECT DISTINCT customer_name
+            FROM sales 
+            WHERE customer_name IS NOT NULL
+              AND customer_name != ''
+            ORDER BY customer_name
+        """)
+        
+        result = self.db.exec(query)
+        return [row[0] for row in result if row[0]]
+
+    def get_unique_flags(self) -> List[str]:
+        """Get all unique flags from entire sales database for hospitality users"""
+        query = text("""
+            SELECT DISTINCT flag
+            FROM sales 
+            WHERE flag IS NOT NULL
+              AND flag != ''
+            ORDER BY flag
+        """)
+        
+        result = self.db.exec(query)
+        return [row[0] for row in result if row[0]]

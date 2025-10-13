@@ -86,9 +86,9 @@
                     </div>
                 </div>
                 <div class="stat">
-                    <div class="stat-title">Variance</div>
-                    <div class="stat-value" :class="getVarianceClass(getTotalSales() - getTotalBudget())">
-                        ${{ formatCurrency(getTotalSales() - getTotalBudget()) }}
+                    <div class="stat-title">Growth</div>
+                    <div class="stat-value" :class="getGrowthClass(getTotalSales(), getTotalBudget())">
+                        {{ getGrowthPercent(getTotalSales(), getTotalBudget()).toFixed(2) }}%
                     </div>
                 </div>
             </div>
@@ -154,9 +154,15 @@ defineProps({
     }
 });
 
-const getVarianceClass = (variance) => {
-    if (variance > 0) return 'text-success';
-    if (variance < 0) return 'text-error';
+const getGrowthPercent = (sales, budget) => {
+    if (sales === 0) return 0;
+    return ((budget - sales) / sales) * 100;
+};
+
+const getGrowthClass = (sales, budget) => {
+    const growth = getGrowthPercent(sales, budget);
+    if (growth > 0) return 'text-success';
+    if (growth < 0) return 'text-error';
     return 'text-base-content';
 };
 </script>

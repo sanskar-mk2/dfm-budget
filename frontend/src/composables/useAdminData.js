@@ -1,10 +1,10 @@
-import { ref, computed } from 'vue';
-import { useAuthStore } from '@/stores/auth';
+import { ref, computed } from "vue";
+import { useAuthStore } from "@/stores/auth";
 import {
     downloadCSV,
     getSalesBudgetHeaders,
     formatCurrencyForCSV,
-} from '@/utils/downloadUtils';
+} from "@/utils/downloadUtils";
 
 export function useAdminData() {
     const authStore = useAuthStore();
@@ -18,7 +18,12 @@ export function useAdminData() {
     const totalBudget = computed(() =>
         summaryData.value.reduce((sum, p) => sum + p.total_budget, 0)
     );
-    const totalVariance = computed(() => totalSales.value - totalBudget.value);
+    const totalGrowthPercent = computed(() => {
+        if (totalSales.value === 0) return 0;
+        return (
+            ((totalBudget.value - totalSales.value) / totalSales.value) * 100
+        );
+    });
 
     const hospitalityData = computed(() =>
         summaryData.value.filter(
@@ -46,7 +51,7 @@ export function useAdminData() {
                 q3_budget: 0,
                 q4_budget: 0,
                 total_budget: 0,
-                variance: 0,
+                growth_percent: 0,
             };
 
         const t = data.reduce(
@@ -77,7 +82,10 @@ export function useAdminData() {
 
         t.total_sales = t.q1_sales + t.q2_sales + t.q3_sales + t.q4_sales;
         t.total_budget = t.q1_budget + t.q2_budget + t.q3_budget + t.q4_budget;
-        t.variance = t.total_sales - t.total_budget;
+        t.growth_percent =
+            t.total_sales !== 0
+                ? ((t.total_budget - t.total_sales) / t.total_sales) * 100
+                : 0;
         t.zero_perc_sales_percent = t.total_sales
             ? (t.zero_perc_sales / t.total_sales) * 100
             : 0;
@@ -118,7 +126,9 @@ export function useAdminData() {
             const budget = await budgetRes.json();
 
             // Get salesperson info from summary data
-            const salespersonInfo = summaryData.value.find(p => p.salesperson_id === id);
+            const salespersonInfo = summaryData.value.find(
+                (p) => p.salesperson_id === id
+            );
 
             return sales.data.map((s) => {
                 const b = budget.data.find(
@@ -127,15 +137,45 @@ export function useAdminData() {
                         x.flag === s.flag &&
                         x.customer_name === s.customer_name
                 );
+                const totalSales =
+                    (parseFloat(s.q1_sales) || 0) +
+                    (parseFloat(s.q2_sales) || 0) +
+                    (parseFloat(s.q3_sales) || 0) +
+                    (parseFloat(s.q4_sales) || 0);
+                const totalBudget = b
+                    ? (parseFloat(b.quarter_1_sales) || 0) +
+                      (parseFloat(b.quarter_2_sales) || 0) +
+                      (parseFloat(b.quarter_3_sales) || 0) +
+                      (parseFloat(b.quarter_4_sales) || 0)
+                    : 0;
+                const growthPercent =
+                    totalSales !== 0 &&
+                    !isNaN(totalSales) &&
+                    !isNaN(totalBudget)
+                        ? ((totalBudget - totalSales) / totalSales) * 100
+                        : 0;
+
                 return {
                     ...s,
                     salesperson_id: id,
-                    salesperson_name: salespersonInfo?.salesperson_name || "Unknown",
+                    salesperson_name:
+                        salespersonInfo?.salesperson_name || "Unknown",
                     role: salespersonInfo?.role || "Unknown",
-                    q1_budget: b ? formatCurrencyForCSV(b.quarter_1_sales) : "0.00",
-                    q2_budget: b ? formatCurrencyForCSV(b.quarter_2_sales) : "0.00",
-                    q3_budget: b ? formatCurrencyForCSV(b.quarter_3_sales) : "0.00",
-                    q4_budget: b ? formatCurrencyForCSV(b.quarter_4_sales) : "0.00",
+                    q1_budget: b
+                        ? formatCurrencyForCSV(b.quarter_1_sales)
+                        : "0.00",
+                    q2_budget: b
+                        ? formatCurrencyForCSV(b.quarter_2_sales)
+                        : "0.00",
+                    q3_budget: b
+                        ? formatCurrencyForCSV(b.quarter_3_sales)
+                        : "0.00",
+                    q4_budget: b
+                        ? formatCurrencyForCSV(b.quarter_4_sales)
+                        : "0.00",
+                    growth_percent: isNaN(growthPercent)
+                        ? "0.00"
+                        : growthPercent.toFixed(2),
                 };
             });
         } catch (err) {
@@ -158,34 +198,40 @@ export function useAdminData() {
 
     async function downloadFullBudgetSheet() {
         if (!summaryData.value.length) return alert("No data available");
-        
+
         try {
             // Show loading state
             const originalLoading = loading.value;
             loading.value = true;
-            
+
             const allData = [];
-            
+
             // Fetch data for all salespeople
             for (const person of summaryData.value) {
                 const data = await fetchSalespersonData(person.salesperson_id);
                 allData.push(...data);
             }
-            
+
             if (!allData.length) {
                 alert("No data available");
                 return;
             }
-            
+
             // Determine if we have mixed data types (both hospitality and non-hospitality)
-            const hasHospitality = allData.some(d => d.role?.toLowerCase().startsWith("hospitality"));
-            const hasNonHospitality = allData.some(d => !d.role?.toLowerCase().startsWith("hospitality"));
+            const hasHospitality = allData.some((d) =>
+                d.role?.toLowerCase().startsWith("hospitality")
+            );
+            const hasNonHospitality = allData.some(
+                (d) => !d.role?.toLowerCase().startsWith("hospitality")
+            );
             const isMixed = hasHospitality && hasNonHospitality;
-            
+
             // Use appropriate headers based on data type
             const headers = getSalesBudgetHeaders(hasHospitality, isMixed);
-            
-            const filename = `full_budget_sheet_${new Date().toISOString().split("T")[0]}.csv`;
+
+            const filename = `full_budget_sheet_${
+                new Date().toISOString().split("T")[0]
+            }.csv`;
             downloadCSV(allData, headers, filename);
         } catch (err) {
             console.error("Error downloading full budget sheet:", err);
@@ -202,13 +248,13 @@ export function useAdminData() {
         summaryData,
         totalSales,
         totalBudget,
-        totalVariance,
+        totalGrowthPercent,
         hospitalityData,
         nonHospitalityData,
         hospitalitySubtotals,
         nonHospitalitySubtotals,
         fetchAdminSummary,
         downloadSalespersonData,
-        downloadFullBudgetSheet
+        downloadFullBudgetSheet,
     };
 }

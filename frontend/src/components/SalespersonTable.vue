@@ -56,7 +56,7 @@ const formatNumber = (num) =>
                         <th>Q3 Budget</th>
                         <th>Q4 Budget</th>
                         <th>Total Budget</th>
-                        <th>Variance</th>
+                        <th>Growth</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -133,7 +133,7 @@ const formatNumber = (num) =>
                             ${{ formatNumber(p.total_budget) }}
                         </td>
                         <td class="text-right">
-                            ${{ formatNumber(p.variance) }}
+                            {{ p.total_sales !== 0 ? (((p.total_budget - p.total_sales) / p.total_sales) * 100).toFixed(2) : '0.00' }}%
                         </td>
                     </tr>
 
@@ -181,7 +181,7 @@ const formatNumber = (num) =>
                             ${{ formatNumber(subtotals.total_budget) }}
                         </td>
                         <td class="text-right">
-                            ${{ formatNumber(subtotals.variance) }}
+                            {{ subtotals.total_sales !== 0 ? (((subtotals.total_budget - subtotals.total_sales) / subtotals.total_sales) * 100).toFixed(2) : '0.00' }}%
                         </td>
                     </tr>
                 </tbody>

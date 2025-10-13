@@ -1,19 +1,19 @@
 <template>
     <div class="overflow-x-auto">
         <table class="table-md table table-zebra w-full">
-             <thead>
-                 <tr>
-                     <th></th>
-                     <th v-if="isHospitality">Brand</th>
-                     <th v-if="isHospitality">Flag</th>
-                     <th v-if="!isHospitality">Customer Class</th>
-                     <th v-if="!isHospitality">Customer Name</th>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th v-if="isHospitality">Brand</th>
+                    <th v-if="isHospitality">Flag</th>
+                    <th v-if="!isHospitality">Customer Class</th>
+                    <th v-if="!isHospitality">Customer Name</th>
                     <th>Q1 Sales</th>
                     <th>Q2 Sales</th>
                     <th>Q3 Sales</th>
                     <th>Q4 Orders</th>
                     <th>Total Sales</th>
-                    <th>0% Sales (Rate)</th>
+                    <th v-if="isHospitality">0% Sales (Rate)</th>
                     <th>Budget Q1</th>
                     <th>Budget Q2</th>
                     <th>Budget Q3</th>
@@ -32,17 +32,17 @@
                               }`
                     "
                 >
-                     <!-- Regular Sales Row -->
-                     <tr v-if="!item.isSubtotal">
-                         <td></td>
-                         <td v-if="isHospitality">{{ item.brand || "N/A" }}</td>
-                         <td v-if="isHospitality">{{ item.flag || "N/A" }}</td>
-                         <td v-if="!isHospitality">
-                             {{ item.derived_customer_class || "N/A" }}
-                         </td>
-                         <td v-if="!isHospitality">
-                             {{ item.customer_name || "N/A" }}
-                         </td>
+                    <!-- Regular Sales Row -->
+                    <tr v-if="!item.isSubtotal">
+                        <td></td>
+                        <td v-if="isHospitality">{{ item.brand || "N/A" }}</td>
+                        <td v-if="isHospitality">{{ item.flag || "N/A" }}</td>
+                        <td v-if="!isHospitality">
+                            {{ item.derived_customer_class || "N/A" }}
+                        </td>
+                        <td v-if="!isHospitality">
+                            {{ item.customer_name || "N/A" }}
+                        </td>
                         <td class="text-right">
                             ${{ formatCurrency(item.q1_sales) }}
                         </td>
@@ -58,7 +58,7 @@
                         <td class="text-right font-semibold">
                             ${{ formatCurrency(item.total_sales) }}
                         </td>
-                        <td class="text-right">
+                        <td v-if="isHospitality" class="text-right">
                             ${{
                                 formatCurrency(item.zero_perc_sales_total)
                             }}
@@ -132,23 +132,17 @@
                         </td>
                     </tr>
 
-                     <!-- Subtotal Row -->
-                     <tr
-                         v-else
-                         class="bg-blue-50 border-t-2 border-b-4 border-primary"
-                     >
-                         <td></td>
-                         <td v-if="isHospitality" class="font-bold text-primary">
-                             {{ item.groupKey }} Total
-                         </td>
-                         <td v-if="isHospitality"></td>
-                         <td
-                             v-if="!isHospitality"
-                             class="font-bold text-primary"
-                         >
-                             {{ item.groupKey }} Total
-                         </td>
-                         <td v-if="!isHospitality"></td>
+                    <!-- Subtotal Row -->
+                    <tr
+                        v-else
+                        class="bg-blue-50 border-t-2 border-b-4 border-primary"
+                    >
+                        <td
+                            colspan="3"
+                            class="font-bold text-primary text-center"
+                        >
+                            {{ item.groupKey }} Total
+                        </td>
                         <td class="text-right font-bold text-primary">
                             ${{ formatCurrency(item.q1_sales) }}
                         </td>
@@ -164,7 +158,10 @@
                         <td class="text-right font-bold text-primary">
                             ${{ formatCurrency(item.total_sales) }}
                         </td>
-                        <td class="text-right font-bold text-primary">
+                        <td
+                            v-if="isHospitality"
+                            class="text-right font-bold text-primary"
+                        >
                             ${{
                                 formatCurrency(item.zero_perc_sales_total)
                             }}
@@ -187,48 +184,50 @@
                     </tr>
                 </template>
 
-                 <!-- Custom Budget Rows -->
-                 <tr
-                     v-for="budget in customBudgets"
-                     :key="`custom-${budget.id}`"
-                     class="bg-amber-50/30"
-                 >
-                     <td>
-                         <button
-                             @click="handleDeleteCustomBudget(budget.id)"
-                             class="btn btn-ghost btn-xs text-error hover:bg-error hover:text-error-content"
-                             title="Delete custom budget"
-                         >
-                             <svg
-                                 xmlns="http://www.w3.org/2000/svg"
-                                 class="h-4 w-4"
-                                 fill="none"
-                                 viewBox="0 0 24 24"
-                                 stroke="currentColor"
-                             >
-                                 <path
-                                     stroke-linecap="round"
-                                     stroke-linejoin="round"
-                                     stroke-width="2"
-                                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                 />
-                             </svg>
-                         </button>
-                     </td>
-                     <td v-if="isHospitality">{{ budget.brand || "N/A" }}</td>
-                     <td v-if="isHospitality">{{ budget.flag || "N/A" }}</td>
-                     <td v-if="!isHospitality">
-                         {{ budget.customer_class || "N/A" }}
-                     </td>
-                     <td v-if="!isHospitality">
-                         {{ budget.customer_name || "N/A" }}
-                     </td>
+                <!-- Custom Budget Rows -->
+                <tr
+                    v-for="budget in customBudgets"
+                    :key="`custom-${budget.id}`"
+                    class="bg-amber-50/30"
+                >
+                    <td>
+                        <button
+                            @click="handleDeleteCustomBudget(budget.id)"
+                            class="btn btn-ghost btn-xs text-error hover:bg-error hover:text-error-content"
+                            title="Delete custom budget"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                            </svg>
+                        </button>
+                    </td>
+                    <td v-if="isHospitality">{{ budget.brand || "N/A" }}</td>
+                    <td v-if="isHospitality">{{ budget.flag || "N/A" }}</td>
+                    <td v-if="!isHospitality">
+                        {{ budget.customer_class || "N/A" }}
+                    </td>
+                    <td v-if="!isHospitality">
+                        {{ budget.customer_name || "N/A" }}
+                    </td>
                     <td class="text-right">$0.00</td>
                     <td class="text-right">$0.00</td>
                     <td class="text-right">$0.00</td>
                     <td class="text-right">$0.00</td>
                     <td class="text-right font-semibold">$0.00</td>
-                    <td class="text-right">$0.00 (0.00%)</td>
+                    <td v-if="isHospitality" class="text-right">
+                        $0.00 (0.00%)
+                    </td>
                     <td :class="getCellClass(budget, 1)">
                         <BudgetInput
                             :value="getBudgetValue(budget, 1)"
@@ -289,50 +288,56 @@
                             "
                         />
                     </td>
-                 </tr>
+                </tr>
 
-                 <!-- Total Row -->
-                 <tr class="bg-gray-100 border-t-4 border-gray-400">
-                     <td></td>
-                     <td v-if="isHospitality" class="font-bold text-lg">TOTAL</td>
-                     <td v-if="isHospitality"></td>
-                     <td v-if="!isHospitality" class="font-bold text-lg">TOTAL</td>
-                     <td v-if="!isHospitality"></td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ1()) }}
-                     </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ2()) }}
-                     </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ3()) }}
-                     </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ4()) }}
-                     </td>
+                <!-- Total Row -->
+                <tr class="bg-gray-100 border-t-4 border-gray-400">
+                    <td></td>
+                    <td v-if="isHospitality" class="font-bold text-lg">
+                        TOTAL
+                    </td>
+                    <td v-if="isHospitality"></td>
+                    <td v-if="!isHospitality" class="font-bold text-lg">
+                        TOTAL
+                    </td>
+                    <td v-if="!isHospitality"></td>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ1()) }}
+                    </td>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ2()) }}
+                    </td>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ3()) }}
+                    </td>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ4()) }}
+                    </td>
                      <td class="text-right font-bold text-lg">
                          ${{ formatCurrency(getTotalSales()) }}
                      </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalZeroPercent()) }} ({{ getZeroPercentRate().toFixed(2) }}%)
+                     <td v-if="isHospitality" class="text-right font-bold text-lg">
+                         ${{ formatCurrency(getTotalZeroPercent()) }} ({{
+                             getZeroPercentRate().toFixed(2)
+                         }}%)
                      </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ1Budget()) }}
-                     </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ2Budget()) }}
-                     </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ3Budget()) }}
-                     </td>
-                     <td class="text-right font-bold text-lg">
-                         ${{ formatCurrency(getTotalQ4Budget()) }}
-                     </td>
-                 </tr>
-             </tbody>
-         </table>
-     </div>
- </template>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ1Budget()) }}
+                    </td>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ2Budget()) }}
+                    </td>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ3Budget()) }}
+                    </td>
+                    <td class="text-right font-bold text-lg">
+                        ${{ formatCurrency(getTotalQ4Budget()) }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</template>
 
 <script setup>
 import { computed } from "vue";
@@ -376,59 +381,59 @@ const props = defineProps({
         type: Function,
         required: true,
     },
-     isHospitality: {
-         type: Boolean,
-         required: true,
-     },
-     getTotalQ1: {
-         type: Function,
-         required: true,
-     },
-     getTotalQ2: {
-         type: Function,
-         required: true,
-     },
-     getTotalQ3: {
-         type: Function,
-         required: true,
-     },
-     getTotalQ4: {
-         type: Function,
-         required: true,
-     },
-     getTotalSales: {
-         type: Function,
-         required: true,
-     },
-     getTotalZeroPercent: {
-         type: Function,
-         required: true,
-     },
-     getZeroPercentRate: {
-         type: Function,
-         required: true,
-     },
-     getTotalQ1Budget: {
-         type: Function,
-         required: false,
-     },
-     getTotalQ2Budget: {
-         type: Function,
-         required: false,
-     },
-     getTotalQ3Budget: {
-         type: Function,
-         required: false,
-     },
-     getTotalQ4Budget: {
-         type: Function,
-         required: false,
-     },
-     getTotalBudget: {
-         type: Function,
-         required: false,
-     },
- });
+    isHospitality: {
+        type: Boolean,
+        required: true,
+    },
+    getTotalQ1: {
+        type: Function,
+        required: true,
+    },
+    getTotalQ2: {
+        type: Function,
+        required: true,
+    },
+    getTotalQ3: {
+        type: Function,
+        required: true,
+    },
+    getTotalQ4: {
+        type: Function,
+        required: true,
+    },
+    getTotalSales: {
+        type: Function,
+        required: true,
+    },
+    getTotalZeroPercent: {
+        type: Function,
+        required: true,
+    },
+    getZeroPercentRate: {
+        type: Function,
+        required: true,
+    },
+    getTotalQ1Budget: {
+        type: Function,
+        required: false,
+    },
+    getTotalQ2Budget: {
+        type: Function,
+        required: false,
+    },
+    getTotalQ3Budget: {
+        type: Function,
+        required: false,
+    },
+    getTotalQ4Budget: {
+        type: Function,
+        required: false,
+    },
+    getTotalBudget: {
+        type: Function,
+        required: false,
+    },
+});
 
 // Group sales data by Brand (hospitality) or Customer Class (non-hospitality)
 // Maintains the backend sort order: Brand DESC, Flag DESC, Customer Name DESC for hospitality

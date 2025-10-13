@@ -17,7 +17,10 @@ const totalBudget = computed(() =>
     props.summaryData.reduce((sum, p) => sum + p.total_budget, 0)
 );
 
-const totalVariance = computed(() => totalSales.value - totalBudget.value);
+const totalGrowthPercent = computed(() => {
+    if (totalSales.value === 0) return 0;
+    return ((totalBudget.value - totalSales.value) / totalSales.value) * 100;
+});
 
 const formatNumber = (num) =>
     new Intl.NumberFormat("en-US", {
@@ -45,9 +48,9 @@ const formatNumber = (num) =>
             </div>
         </div>
         <div class="stat bg-base-100 shadow rounded-xl">
-            <div class="stat-title">Variance</div>
+            <div class="stat-title">Growth</div>
             <div class="stat-value text-primary">
-                ${{ formatNumber(totalVariance) }}
+                {{ totalGrowthPercent.toFixed(2) }}%
             </div>
         </div>
     </div>

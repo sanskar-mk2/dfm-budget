@@ -4,27 +4,6 @@
             <h3 class="font-bold text-lg mb-4">Add Custom Row</h3>
 
             <form @submit.prevent="handleSubmit" class="space-y-4">
-                <!-- Customer Name (non-hospitality only) -->
-                <div v-if="!isHospitality" class="form-control">
-                    <label class="label">
-                        <span class="label-text">Customer Name</span>
-                    </label>
-                    <input
-                        ref="customerNameInput"
-                        v-model="form.customer_name"
-                        type="text"
-                        placeholder="Enter customer name"
-                        class="input input-bordered w-full"
-                        :class="{ 'input-error': errors.customer_name }"
-                        required
-                    />
-                    <label v-if="errors.customer_name" class="label">
-                        <span class="label-text-alt text-error">{{
-                            errors.customer_name
-                        }}</span>
-                    </label>
-                </div>
-
                 <!-- Non-Hospitality Form -->
                 <div v-if="!isHospitality" class="space-y-4">
                     <div class="form-control">
@@ -51,6 +30,36 @@
                         <label v-if="errors.customer_class" class="label">
                             <span class="label-text-alt text-error">{{
                                 errors.customer_class
+                            }}</span>
+                        </label>
+                    </div>
+
+                    <!-- Customer Name (non-hospitality only) -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Customer Name</span>
+                        </label>
+                        <input
+                            ref="customerNameInput"
+                            v-model="form.customer_name"
+                            type="text"
+                            list="customer-names"
+                            placeholder="Enter or select customer name"
+                            class="input input-bordered w-full"
+                            :class="{ 'input-error': errors.customer_name }"
+                            required
+                        />
+                        <datalist id="customer-names">
+                            <option
+                                v-for="customerName in props.autosuggestData
+                                    .customer_names"
+                                :key="customerName"
+                                :value="customerName"
+                            />
+                        </datalist>
+                        <label v-if="errors.customer_name" class="label">
+                            <span class="label-text-alt text-error">{{
+                                errors.customer_name
                             }}</span>
                         </label>
                     </div>
@@ -93,11 +102,19 @@
                         <input
                             v-model="form.flag"
                             type="text"
-                            placeholder="Enter flag"
+                            list="flags"
+                            placeholder="Enter or select flag"
                             class="input input-bordered w-full"
                             :class="{ 'input-error': errors.flag }"
                             required
                         />
+                        <datalist id="flags">
+                            <option
+                                v-for="flag in props.autosuggestData.flags"
+                                :key="flag"
+                                :value="flag"
+                            />
+                        </datalist>
                         <label v-if="errors.flag" class="label">
                             <span class="label-text-alt text-error">{{
                                 errors.flag
@@ -161,7 +178,9 @@ const props = defineProps({
         type: Object,
         default: () => ({
             customer_classes: [],
+            customer_names: [],
             brands: [],
+            flags: [],
         }),
     },
 });

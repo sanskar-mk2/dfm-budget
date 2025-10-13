@@ -171,16 +171,23 @@ async def delete_budget(
 async def get_autosuggest_data(
     request: Request, db: Session = Depends(get_readonly_session)
 ) -> Dict[str, Any]:
-    """Returns customer_classes and brands for autosuggest"""
+    """Returns customer_classes, customer_names, brands, and flags for autosuggest"""
     try:
         # Get autosuggest data
         budget_service = BudgetService(db)
         customer_classes = budget_service.get_unique_customer_classes()
+        customer_names = budget_service.get_unique_customer_names()
         brands = budget_service.get_unique_brands()
+        flags = budget_service.get_unique_flags()
 
         return {
             "success": True,
-            "data": {"customer_classes": customer_classes, "brands": brands},
+            "data": {
+                "customer_classes": customer_classes,
+                "customer_names": customer_names,
+                "brands": brands,
+                "flags": flags,
+            },
         }
 
     except Exception as e:

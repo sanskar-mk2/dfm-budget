@@ -17,7 +17,9 @@ export function useBudgetDataForAdmin(salespersonId) {
     const inputValues = ref({});
     const autosuggestData = ref({
         customer_classes: [],
+        customer_names: [],
         brands: [],
+        flags: [],
     });
 
     let autoSaveTimer = null;
@@ -58,14 +60,37 @@ export function useBudgetDataForAdmin(salespersonId) {
             const existingBudget = budgetMap.value[key];
 
             const id = unref(salespersonId);
+
+            // Get salesperson name from admin summary API (like in download functionality)
+            let salespersonName = salespersonInfo.value?.salesperson_name;
+            if (!salespersonName) {
+                try {
+                    const adminResponse = await apiCall("/api/admin/summary");
+                    if (adminResponse.ok) {
+                        const adminData = await adminResponse.json();
+                        const adminSalespersonInfo = adminData.data?.find(
+                            (p) => p.salesperson_id === id
+                        );
+                        salespersonName =
+                            adminSalespersonInfo?.salesperson_name;
+                    }
+                } catch (err) {
+                    console.error(
+                        "Error fetching salesperson name from admin summary:",
+                        err
+                    );
+                }
+            }
+
             const budgetData = {
                 salesperson_id: id,
+                salesperson_name: salespersonName || "Unknown",
                 brand: sale.brand,
                 flag: sale.flag,
                 customer_name: sale.customer_name,
                 customer_class: isHospitality.value
                     ? "Hospitality"
-                    : sale.derived_customer_class,
+                    : sale.derived_customer_class || "General",
                 [`quarter_${quarter}_sales`]: parseFloat(value) || 0,
                 is_custom: sale.is_custom || false,
             };
@@ -252,14 +277,35 @@ export function useBudgetDataForAdmin(salespersonId) {
     const createCustomBudget = async (budgetData) => {
         try {
             const id = unref(salespersonId);
+
+            // Get salesperson name from admin summary API (like in download functionality)
+            let salespersonName = salespersonInfo.value?.salesperson_name;
+            if (!salespersonName) {
+                try {
+                    const adminResponse = await apiCall("/api/admin/summary");
+                    if (adminResponse.ok) {
+                        const adminData = await adminResponse.json();
+                        const adminSalespersonInfo = adminData.data?.find(
+                            (p) => p.salesperson_id === id
+                        );
+                        salespersonName =
+                            adminSalespersonInfo?.salesperson_name;
+                    }
+                } catch (err) {
+                    console.error(
+                        "Error fetching salesperson name from admin summary:",
+                        err
+                    );
+                }
+            }
+
             const customBudgetData = {
                 ...budgetData,
                 salesperson_id: id,
-                salesperson_name:
-                    salespersonInfo.value?.salesperson_name || "Unknown",
+                salesperson_name: salespersonName || "Unknown",
                 customer_class: isHospitality.value
                     ? "Hospitality"
-                    : budgetData.customer_class,
+                    : budgetData.customer_class || "General",
                 quarter_1_sales: 0,
                 quarter_2_sales: 0,
                 quarter_3_sales: 0,

@@ -43,9 +43,11 @@ export function useAdminData() {
                 q2_sales: 0,
                 q3_sales: 0,
                 q4_sales: 0,
+                q4_orders: 0,
                 total_sales: 0,
                 zero_perc_sales: 0,
                 zero_perc_sales_percent: 0,
+                open_2026: 0,
                 q1_budget: 0,
                 q2_budget: 0,
                 q3_budget: 0,
@@ -60,7 +62,9 @@ export function useAdminData() {
                 acc.q2_sales += p.q2_sales;
                 acc.q3_sales += p.q3_sales;
                 acc.q4_sales += p.q4_sales;
+                acc.q4_orders += p.q4_orders;
                 acc.zero_perc_sales += p.zero_perc_sales;
+                acc.open_2026 += p.open_2026;
                 acc.q1_budget += p.q1_budget;
                 acc.q2_budget += p.q2_budget;
                 acc.q3_budget += p.q3_budget;
@@ -72,7 +76,9 @@ export function useAdminData() {
                 q2_sales: 0,
                 q3_sales: 0,
                 q4_sales: 0,
+                q4_orders: 0,
                 zero_perc_sales: 0,
+                open_2026: 0,
                 q1_budget: 0,
                 q2_budget: 0,
                 q3_budget: 0,
@@ -80,7 +86,7 @@ export function useAdminData() {
             }
         );
 
-        t.total_sales = t.q1_sales + t.q2_sales + t.q3_sales + t.q4_sales;
+        t.total_sales = t.q1_sales + t.q2_sales + t.q3_sales + t.q4_sales + t.q4_orders;
         t.total_budget = t.q1_budget + t.q2_budget + t.q3_budget + t.q4_budget;
         t.growth_percent =
             t.total_sales !== 0

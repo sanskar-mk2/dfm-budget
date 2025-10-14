@@ -46,6 +46,7 @@ class AdminService:
                 + float(sales_data["q2_sales"] or 0)
                 + float(sales_data["q3_sales"] or 0)
                 + float(sales_data["q4_sales"] or 0)
+                + float(sales_data["q4_orders"] or 0)
             )
             total_budget = (
                 float(budget_data["q1_budget"] or 0)

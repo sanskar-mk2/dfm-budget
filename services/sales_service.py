@@ -49,7 +49,7 @@ class SalesService:
         - Each flag has a fixed brand
         - derived_customer_class = 'Hospitality'
         """
-        # Step 1: Get basic sales data grouped by flag, brand (2025 only)
+        # Step 1: Get basic sales data grouped by flag, brand (Q1-Q3 2025 only)
         basic_query = text(
             f"""
             SELECT 
@@ -59,7 +59,7 @@ class SalesService:
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_total
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2026-01-01'
+              AND period >= '2025-01-01' AND period < '2025-10-01'
             GROUP BY flag, brand
         """
         )
@@ -67,7 +67,7 @@ class SalesService:
         basic_result = self.db.exec(basic_query)
         basic_data = [dict(row._mapping) for row in basic_result]
 
-        # Step 2: Get quarterly breakdowns for 2025
+        # Step 2: Get quarterly breakdowns for Q1-Q3 2025
         quarterly_query = text(
             f"""
             SELECT 
@@ -78,7 +78,7 @@ class SalesService:
                 SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2026-01-01'
+              AND period >= '2025-01-01' AND period < '2025-10-01'
             GROUP BY flag, brand
         """
         )
@@ -200,7 +200,7 @@ class SalesService:
         - derived_customer_class from data
         - brand = NULL, flag = NULL
         """
-        # Step 1: Get basic sales data grouped by customer_name, derived_customer_class (2025 only)
+        # Step 1: Get basic sales data grouped by customer_name, derived_customer_class (Q1-Q3 2025 only)
         basic_query = text(
             f"""
             SELECT 
@@ -210,7 +210,7 @@ class SalesService:
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_total
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2026-01-01'
+              AND period >= '2025-01-01' AND period < '2025-10-01'
             GROUP BY customer_name, derived_customer_class
         """
         )
@@ -218,7 +218,7 @@ class SalesService:
         basic_result = self.db.exec(basic_query)
         basic_data = [dict(row._mapping) for row in basic_result]
 
-        # Step 2: Get quarterly breakdowns for 2025
+        # Step 2: Get quarterly breakdowns for Q1-Q3 2025
         quarterly_query = text(
             f"""
             SELECT 
@@ -229,7 +229,7 @@ class SalesService:
                 SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2026-01-01'
+              AND period >= '2025-01-01' AND period < '2025-10-01'
             GROUP BY customer_name, derived_customer_class
         """
         )

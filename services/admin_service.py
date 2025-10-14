@@ -97,7 +97,7 @@ class AdminService:
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_q1_q3
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2026-01-01'
+              AND period >= '2025-01-01' AND period < '2025-10-01'
         """
         )
 

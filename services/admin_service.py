@@ -64,6 +64,7 @@ class AdminService:
                     "q2_sales": float(sales_data["q2_sales"] or 0),
                     "q3_sales": float(sales_data["q3_sales"] or 0),
                     "q4_sales": float(sales_data["q4_sales"] or 0),
+                    "q4_orders": float(sales_data["q4_orders"] or 0),
                     "open_2026": float(sales_data["open_2026"] or 0),
                     "total_sales": total_sales,
                     "zero_perc_sales": float(sales_data["zero_perc_sales"] or 0),
@@ -87,38 +88,40 @@ class AdminService:
     def _get_salesperson_sales_data(self, salesman_no: int) -> Dict[str, Any]:
         """Get sales data for a specific salesperson"""
 
-        # Q1-Q3 sales from sales table
-        q1_q3_query = text(
+        # Q1-Q4 sales from sales table
+        q1_q4_query = text(
             f"""
             SELECT 
                 SUM(CASE WHEN period >= '2025-01-01' AND period < '2025-04-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q1_sales,
                 SUM(CASE WHEN period >= '2025-04-01' AND period < '2025-07-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q2_sales,
                 SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales,
-                SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_q1_q3
+                SUM(CASE WHEN period >= '2025-10-01' AND period < '2026-01-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_sales,
+                SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_q1_q4
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2025-10-01'
+              AND period >= '2025-01-01' AND period < '2026-01-01'
         """
         )
 
-        q1_q3_result = self.db.exec(q1_q3_query).first()
-        q1_q3_data = (
-            dict(q1_q3_result._mapping)
-            if q1_q3_result
+        q1_q4_result = self.db.exec(q1_q4_query).first()
+        q1_q4_data = (
+            dict(q1_q4_result._mapping)
+            if q1_q4_result
             else {
                 "q1_sales": 0,
                 "q2_sales": 0,
                 "q3_sales": 0,
-                "zero_perc_sales_q1_q3": 0,
+                "q4_sales": 0,
+                "zero_perc_sales_q1_q4": 0,
             }
         )
 
-        # Q4 sales from open_orders table
-        q4_query = text(
+        # Q4 orders from open_orders table
+        q4_orders_query = text(
             f"""
             SELECT 
-                SUM(COALESCE(ext_sales, 0)) as q4_sales,
-                SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_q4
+                SUM(COALESCE(ext_sales, 0)) as q4_orders,
+                SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_orders_zero_perc_sales
             FROM open_orders 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2025-10-01' 
@@ -126,11 +129,11 @@ class AdminService:
         """
         )
 
-        q4_result = self.db.exec(q4_query).first()
-        q4_data = (
-            dict(q4_result._mapping)
-            if q4_result
-            else {"q4_sales": 0, "zero_perc_sales_q4": 0}
+        q4_orders_result = self.db.exec(q4_orders_query).first()
+        q4_orders_data = (
+            dict(q4_orders_result._mapping)
+            if q4_orders_result
+            else {"q4_orders": 0, "q4_orders_zero_perc_sales": 0}
         )
 
         # 2026 open orders
@@ -151,15 +154,16 @@ class AdminService:
         )
 
         # Calculate totals with null safety
-        q1_sales = q1_q3_data["q1_sales"] or 0
-        q2_sales = q1_q3_data["q2_sales"] or 0
-        q3_sales = q1_q3_data["q3_sales"] or 0
-        q4_sales = q4_data["q4_sales"] or 0
-        zero_perc_q1_q3 = q1_q3_data["zero_perc_sales_q1_q3"] or 0
-        zero_perc_q4 = q4_data["zero_perc_sales_q4"] or 0
+        q1_sales = q1_q4_data["q1_sales"] or 0
+        q2_sales = q1_q4_data["q2_sales"] or 0
+        q3_sales = q1_q4_data["q3_sales"] or 0
+        q4_sales = q1_q4_data["q4_sales"] or 0
+        q4_orders = q4_orders_data["q4_orders"] or 0
+        zero_perc_q1_q4 = q1_q4_data["zero_perc_sales_q1_q4"] or 0
+        zero_perc_q4_orders = q4_orders_data["q4_orders_zero_perc_sales"] or 0
 
-        total_sales = q1_sales + q2_sales + q3_sales + q4_sales
-        total_zero_perc_sales = zero_perc_q1_q3 + zero_perc_q4
+        total_sales = q1_sales + q2_sales + q3_sales + q4_sales + q4_orders
+        total_zero_perc_sales = zero_perc_q1_q4 + zero_perc_q4_orders
         zero_perc_sales_percent = (
             (total_zero_perc_sales / total_sales * 100) if total_sales > 0 else 0
         )
@@ -169,6 +173,7 @@ class AdminService:
             "q2_sales": float(q2_sales),
             "q3_sales": float(q3_sales),
             "q4_sales": float(q4_sales),
+            "q4_orders": float(q4_orders),
             "open_2026": float(open_2026_data["open_2026"] or 0),
             "zero_perc_sales": float(total_zero_perc_sales),
             "zero_perc_sales_percent": round(float(zero_perc_sales_percent), 2),

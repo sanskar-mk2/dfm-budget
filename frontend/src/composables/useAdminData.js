@@ -141,7 +141,8 @@ export function useAdminData() {
                     (parseFloat(s.q1_sales) || 0) +
                     (parseFloat(s.q2_sales) || 0) +
                     (parseFloat(s.q3_sales) || 0) +
-                    (parseFloat(s.q4_sales) || 0);
+                    (parseFloat(s.q4_sales) || 0) +
+                    (parseFloat(s.q4_orders) || 0);
                 const totalBudget = b
                     ? (parseFloat(b.quarter_1_sales) || 0) +
                       (parseFloat(b.quarter_2_sales) || 0) +

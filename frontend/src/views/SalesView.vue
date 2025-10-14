@@ -18,14 +18,15 @@ const {
     error,
     isHospitality,
     fetchSales,
-    getTotalQ1,
-    getTotalQ2,
-    getTotalQ3,
-    getTotalQ4,
-    getTotalSales,
-    getTotalZeroPercent,
-    getZeroPercentRate,
-    getTotalOpen2026,
+        getTotalQ1,
+        getTotalQ2,
+        getTotalQ3,
+        getTotalQ4Sales,
+        getTotalQ4,
+        getTotalSales,
+        getTotalZeroPercent,
+        getZeroPercentRate,
+        getTotalOpen2026,
 } = useSalesData();
 
 const {
@@ -149,6 +150,7 @@ onUnmounted(() => {
                 :get-total-q1="getTotalQ1"
                 :get-total-q2="getTotalQ2"
                 :get-total-q3="getTotalQ3"
+                :get-total-q4-sales="getTotalQ4Sales"
                 :get-total-q4="getTotalQ4"
                 :get-total-sales="getTotalSales"
                 :get-total-zero-percent="getTotalZeroPercent"

@@ -99,6 +99,7 @@ export function getSalesBudgetHeaders(isHospitality, isMixed = false) {
         { key: 'q2_sales', label: 'Q2 Sales' },
         { key: 'q3_sales', label: 'Q3 Sales' },
         { key: 'q4_sales', label: 'Q4 Sales' },
+        { key: 'q4_orders', label: 'Q4 Orders' },
         { key: 'total_sales', label: 'Total Sales' },
         { key: 'zero_perc_sales_total', label: 'Zero % Sales' },
         { key: 'zero_perc_sales_percent', label: 'Zero % %' },

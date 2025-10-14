@@ -31,6 +31,12 @@
                     </div>
                 </div>
                 <div class="stat">
+                    <div class="stat-title">Q4 Sales</div>
+                    <div class="stat-value text-info">
+                        ${{ formatCurrency(getTotalQ4Sales()) }}
+                    </div>
+                </div>
+                <div class="stat">
                     <div class="stat-title">Q4 Orders</div>
                     <div class="stat-value text-info">
                         ${{ formatCurrency(getTotalQ4()) }}
@@ -131,6 +137,10 @@ defineProps({
         required: true,
     },
     getTotalQ3: {
+        type: Function,
+        required: true,
+    },
+    getTotalQ4Sales: {
         type: Function,
         required: true,
     },

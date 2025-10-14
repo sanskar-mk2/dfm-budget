@@ -40,6 +40,7 @@
                         <th>Q1 Sales</th>
                         <th>Q2 Sales</th>
                         <th>Q3 Sales</th>
+                        <th>Q4 Sales</th>
                         <th>Q4 Orders</th>
                         <th>Total Sales</th>
                         <th v-if="isHospitality">0% Sales (Rate)</th>
@@ -100,6 +101,9 @@
                             </td>
                             <td class="text-right">
                                 ${{ formatCurrency(item.q4_sales) }}
+                            </td>
+                            <td class="text-right">
+                                ${{ formatCurrency(item.q4_orders) }}
                             </td>
                             <td class="text-right font-semibold">
                                 ${{ formatCurrency(item.total_sales) }}
@@ -237,6 +241,11 @@
                             <td
                                 class="text-right font-bold text-base-content bg-secondary/50"
                             >
+                                ${{ formatCurrency(item.q4_orders) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
                                 ${{ formatCurrency(item.total_sales) }}
                             </td>
                             <td
@@ -333,9 +342,10 @@
                         </td>
                         <td class="text-right">$0.00</td>
                         <td class="text-right">$0.00</td>
-                        <td class="text-right">$0.00</td>
-                        <td class="text-right">$0.00</td>
-                        <td class="text-right font-semibold">$0.00</td>
+                            <td class="text-right">$0.00</td>
+                            <td class="text-right">$0.00</td>
+                            <td class="text-right">$0.00</td>
+                            <td class="text-right font-semibold">$0.00</td>
                         <td v-if="isHospitality" class="text-right">
                             $0.00 (0.00%)
                         </td>
@@ -433,21 +443,26 @@
                         >
                             ${{ formatCurrency(getTotalQ2()) }}
                         </td>
-                        <td
-                            class="text-right font-bold text-md text-base-content bg-primary/50"
-                        >
-                            ${{ formatCurrency(getTotalQ3()) }}
-                        </td>
-                        <td
-                            class="text-right font-bold text-md text-base-content bg-primary/50"
-                        >
-                            ${{ formatCurrency(getTotalQ4()) }}
-                        </td>
-                        <td
-                            class="text-right font-bold text-md text-base-content bg-primary/50"
-                        >
-                            ${{ formatCurrency(getTotalSales()) }}
-                        </td>
+                            <td
+                                class="text-right font-bold text-md text-base-content bg-primary/50"
+                            >
+                                ${{ formatCurrency(getTotalQ3()) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-md text-base-content bg-primary/50"
+                            >
+                                ${{ formatCurrency(getTotalQ4Sales()) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-md text-base-content bg-primary/50"
+                            >
+                                ${{ formatCurrency(getTotalQ4()) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-md text-base-content bg-primary/50"
+                            >
+                                ${{ formatCurrency(getTotalSales()) }}
+                            </td>
                         <td
                             v-if="isHospitality"
                             class="text-right font-bold text-md text-base-content bg-primary/50"
@@ -542,6 +557,10 @@ const props = defineProps({
         type: Function,
         required: true,
     },
+    getTotalQ4Sales: {
+        type: Function,
+        required: true,
+    },
     getTotalQ4: {
         type: Function,
         required: true,
@@ -626,6 +645,10 @@ const groupedSalesData = computed(() => {
             ),
             q4_sales: groupSales.reduce(
                 (sum, sale) => sum + (parseFloat(sale.q4_sales) || 0),
+                0
+            ),
+            q4_orders: groupSales.reduce(
+                (sum, sale) => sum + (parseFloat(sale.q4_orders) || 0),
                 0
             ),
             zero_perc_sales_total: groupSales.reduce(

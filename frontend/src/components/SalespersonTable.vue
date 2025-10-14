@@ -48,6 +48,7 @@ const formatNumber = (num) =>
                         <th>Q1 Sales</th>
                         <th>Q2 Sales</th>
                         <th>Q3 Sales</th>
+                        <th>Q4 Sales</th>
                         <th>Q4 Orders</th>
                         <th>Total Sales</th>
                         <th>0% Sales (Rate)</th>
@@ -109,6 +110,9 @@ const formatNumber = (num) =>
                         <td class="text-right">
                             ${{ formatNumber(p.q4_sales) }}
                         </td>
+                        <td class="text-right">
+                            ${{ formatNumber(p.q4_orders) }}
+                        </td>
                         <td class="text-right font-bold">
                             ${{ formatNumber(p.total_sales) }}
                         </td>
@@ -165,6 +169,9 @@ const formatNumber = (num) =>
                         </td>
                         <td class="text-right">
                             ${{ formatNumber(subtotals.q4_sales) }}
+                        </td>
+                        <td class="text-right">
+                            ${{ formatNumber(subtotals.q4_orders) }}
                         </td>
                         <td class="text-right">
                             ${{ formatNumber(subtotals.total_sales) }}

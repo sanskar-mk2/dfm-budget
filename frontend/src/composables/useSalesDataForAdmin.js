@@ -60,9 +60,16 @@ export function useSalesDataForAdmin(salespersonId) {
         );
     };
 
-    const getTotalQ4 = () => {
+    const getTotalQ4Sales = () => {
         return sales.value.reduce(
             (sum, sale) => sum + (parseFloat(sale.q4_sales) || 0),
+            0
+        );
+    };
+
+    const getTotalQ4 = () => {
+        return sales.value.reduce(
+            (sum, sale) => sum + (parseFloat(sale.q4_orders) || 0),
             0
         );
     };
@@ -104,6 +111,7 @@ export function useSalesDataForAdmin(salespersonId) {
         getTotalQ1,
         getTotalQ2,
         getTotalQ3,
+        getTotalQ4Sales,
         getTotalQ4,
         getTotalSales,
         getTotalZeroPercent,

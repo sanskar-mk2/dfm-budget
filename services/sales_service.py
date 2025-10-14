@@ -49,7 +49,7 @@ class SalesService:
         - Each flag has a fixed brand
         - derived_customer_class = 'Hospitality'
         """
-        # Step 1: Get basic sales data grouped by flag, brand (Q1-Q3 2025 only)
+        # Step 1: Get basic sales data grouped by flag, brand (Q1-Q4 2025 from sales table)
         basic_query = text(
             f"""
             SELECT 
@@ -59,7 +59,7 @@ class SalesService:
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_total
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2025-10-01'
+              AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY flag, brand
         """
         )
@@ -67,7 +67,7 @@ class SalesService:
         basic_result = self.db.exec(basic_query)
         basic_data = [dict(row._mapping) for row in basic_result]
 
-        # Step 2: Get quarterly breakdowns for Q1-Q3 2025
+        # Step 2: Get quarterly breakdowns for Q1-Q4 2025
         quarterly_query = text(
             f"""
             SELECT 
@@ -75,10 +75,11 @@ class SalesService:
                 brand,
                 SUM(CASE WHEN period >= '2025-01-01' AND period < '2025-04-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q1_sales,
                 SUM(CASE WHEN period >= '2025-04-01' AND period < '2025-07-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q2_sales,
-                SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales
+                SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales,
+                SUM(CASE WHEN period >= '2025-10-01' AND period < '2026-01-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_sales
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2025-10-01'
+              AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY flag, brand
         """
         )
@@ -135,15 +136,15 @@ class SalesService:
             q4 = q4_data.get(key, {})
             open_2026 = open_2026_data.get(key, {})
 
-            total_sales = item["total_sales"]
-            zero_perc_total_q1_q3 = item["zero_perc_sales_total"]
-            q4_sales = q4.get("q4_sales", 0)
-            q4_zero_perc_sales = q4.get("q4_zero_perc_sales", 0)
-            total_sales_with_q4 = total_sales + q4_sales
-            total_zero_perc_sales = zero_perc_total_q1_q3 + q4_zero_perc_sales
+            total_sales = item["total_sales"]  # This now includes Q1-Q4 from sales table
+            zero_perc_total_q1_q4 = item["zero_perc_sales_total"]  # This now includes Q1-Q4 from sales table
+            q4_orders = q4.get("q4_sales", 0)  # Q4 orders from open_orders
+            q4_orders_zero_perc = q4.get("q4_zero_perc_sales", 0)
+            total_sales_with_orders = total_sales + q4_orders
+            total_zero_perc_sales = zero_perc_total_q1_q4 + q4_orders_zero_perc
             zero_perc_percent = (
-                (total_zero_perc_sales / total_sales_with_q4 * 100)
-                if total_sales_with_q4 > 0
+                (total_zero_perc_sales / total_sales_with_orders * 100)
+                if total_sales_with_orders > 0
                 else 0
             )
 
@@ -156,10 +157,11 @@ class SalesService:
                     "q1_sales": quarterly.get("q1_sales", 0),
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
-                    "q4_sales": q4_sales,
+                    "q4_sales": quarterly.get("q4_sales", 0),  # Q4 sales from sales table
+                    "q4_orders": q4_orders,  # Q4 orders from open_orders
                     "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
-                    "total_sales": total_sales_with_q4,
+                    "total_sales": total_sales_with_orders,
                     "zero_perc_sales_percent": round(zero_perc_percent, 2),
                 }
             )
@@ -200,7 +202,7 @@ class SalesService:
         - derived_customer_class from data
         - brand = NULL, flag = NULL
         """
-        # Step 1: Get basic sales data grouped by customer_name, derived_customer_class (Q1-Q3 2025 only)
+        # Step 1: Get basic sales data grouped by customer_name, derived_customer_class (Q1-Q4 2025 from sales table)
         basic_query = text(
             f"""
             SELECT 
@@ -210,7 +212,7 @@ class SalesService:
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_total
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2025-10-01'
+              AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY customer_name, derived_customer_class
         """
         )
@@ -218,7 +220,7 @@ class SalesService:
         basic_result = self.db.exec(basic_query)
         basic_data = [dict(row._mapping) for row in basic_result]
 
-        # Step 2: Get quarterly breakdowns for Q1-Q3 2025
+        # Step 2: Get quarterly breakdowns for Q1-Q4 2025
         quarterly_query = text(
             f"""
             SELECT 
@@ -226,10 +228,11 @@ class SalesService:
                 COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
                 SUM(CASE WHEN period >= '2025-01-01' AND period < '2025-04-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q1_sales,
                 SUM(CASE WHEN period >= '2025-04-01' AND period < '2025-07-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q2_sales,
-                SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales
+                SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales,
+                SUM(CASE WHEN period >= '2025-10-01' AND period < '2026-01-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_sales
             FROM sales 
             WHERE salesperson = {salesman_no}
-              AND period >= '2025-01-01' AND period < '2025-10-01'
+              AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY customer_name, derived_customer_class
         """
         )
@@ -291,15 +294,15 @@ class SalesService:
             q4 = q4_data.get(key, {})
             open_2026 = open_2026_data.get(key, {})
 
-            total_sales = item["total_sales"]
-            zero_perc_total_q1_q3 = item["zero_perc_sales_total"]
-            q4_sales = q4.get("q4_sales", 0)
-            q4_zero_perc_sales = q4.get("q4_zero_perc_sales", 0)
-            total_sales_with_q4 = total_sales + q4_sales
-            total_zero_perc_sales = zero_perc_total_q1_q3 + q4_zero_perc_sales
+            total_sales = item["total_sales"]  # This now includes Q1-Q4 from sales table
+            zero_perc_total_q1_q4 = item["zero_perc_sales_total"]  # This now includes Q1-Q4 from sales table
+            q4_orders = q4.get("q4_sales", 0)  # Q4 orders from open_orders
+            q4_orders_zero_perc = q4.get("q4_zero_perc_sales", 0)
+            total_sales_with_orders = total_sales + q4_orders
+            total_zero_perc_sales = zero_perc_total_q1_q4 + q4_orders_zero_perc
             zero_perc_percent = (
-                (total_zero_perc_sales / total_sales_with_q4 * 100)
-                if total_sales_with_q4 > 0
+                (total_zero_perc_sales / total_sales_with_orders * 100)
+                if total_sales_with_orders > 0
                 else 0
             )
 
@@ -310,10 +313,11 @@ class SalesService:
                     "q1_sales": quarterly.get("q1_sales", 0),
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
-                    "q4_sales": q4_sales,
+                    "q4_sales": quarterly.get("q4_sales", 0),  # Q4 sales from sales table
+                    "q4_orders": q4_orders,  # Q4 orders from open_orders
                     "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
-                    "total_sales": total_sales_with_q4,
+                    "total_sales": total_sales_with_orders,
                     "zero_perc_sales_percent": round(zero_perc_percent, 2),
                     "brand": None,
                     "flag": None,
@@ -367,6 +371,8 @@ class SalesService:
                 "total_q1": 0,
                 "total_q2": 0,
                 "total_q3": 0,
+                "total_q4_sales": 0,
+                "total_q4_orders": 0,
                 "total_q4": 0,
                 "total_open_2026": 0,
                 "avg_zero_perc_sales": 0,
@@ -377,7 +383,9 @@ class SalesService:
         total_q1 = sum(row.get("q1_sales", 0) for row in sales_data)
         total_q2 = sum(row.get("q2_sales", 0) for row in sales_data)
         total_q3 = sum(row.get("q3_sales", 0) for row in sales_data)
-        total_q4 = sum(row.get("q4_sales", 0) for row in sales_data)
+        total_q4_sales = sum(row.get("q4_sales", 0) for row in sales_data)
+        total_q4_orders = sum(row.get("q4_orders", 0) for row in sales_data)
+        total_q4 = total_q4_sales + total_q4_orders
         total_open_2026 = sum(row.get("open_2026", 0) for row in sales_data)
 
         zero_perc_values = [
@@ -395,6 +403,8 @@ class SalesService:
             "total_q1": total_q1,
             "total_q2": total_q2,
             "total_q3": total_q3,
+            "total_q4_sales": total_q4_sales,
+            "total_q4_orders": total_q4_orders,
             "total_q4": total_q4,
             "total_open_2026": total_open_2026,
             "avg_zero_perc_sales": round(avg_zero_perc_sales, 2),
@@ -413,6 +423,8 @@ class SalesService:
                 "total_q1": 0,
                 "total_q2": 0,
                 "total_q3": 0,
+                "total_q4_sales": 0,
+                "total_q4_orders": 0,
                 "total_q4": 0,
                 "total_open_2026": 0,
                 "avg_zero_perc_sales": 0,
@@ -423,7 +435,9 @@ class SalesService:
         total_q1 = sum(row.get("q1_sales", 0) for row in sales_data)
         total_q2 = sum(row.get("q2_sales", 0) for row in sales_data)
         total_q3 = sum(row.get("q3_sales", 0) for row in sales_data)
-        total_q4 = sum(row.get("q4_sales", 0) for row in sales_data)
+        total_q4_sales = sum(row.get("q4_sales", 0) for row in sales_data)
+        total_q4_orders = sum(row.get("q4_orders", 0) for row in sales_data)
+        total_q4 = total_q4_sales + total_q4_orders
         total_open_2026 = sum(row.get("open_2026", 0) for row in sales_data)
 
         zero_perc_values = [
@@ -441,6 +455,8 @@ class SalesService:
             "total_q1": total_q1,
             "total_q2": total_q2,
             "total_q3": total_q3,
+            "total_q4_sales": total_q4_sales,
+            "total_q4_orders": total_q4_orders,
             "total_q4": total_q4,
             "total_open_2026": total_open_2026,
             "avg_zero_perc_sales": round(avg_zero_perc_sales, 2),

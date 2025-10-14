@@ -43,6 +43,7 @@
                         <th>Q4 Orders</th>
                         <th>Total Sales</th>
                         <th v-if="isHospitality">0% Sales (Rate)</th>
+                        <th>2026 Open</th>
                         <th>Budget Q1</th>
                         <th>Budget Q2</th>
                         <th>Budget Q3</th>
@@ -112,6 +113,9 @@
                                         item.zero_perc_sales_percent
                                     )
                                 }}%)
+                            </td>
+                            <td class="text-right">
+                                ${{ formatCurrency(item.open_2026) }}
                             </td>
                             <td
                                 :class="getCellClass(item, 1)"
@@ -251,6 +255,11 @@
                             <td
                                 class="text-right font-bold text-base-content bg-secondary/50"
                             >
+                                ${{ formatCurrency(item.open_2026) }}
+                            </td>
+                            <td
+                                class="text-right font-bold text-base-content bg-secondary/50"
+                            >
                                 ${{ formatCurrency(item.q1_budget) }}
                             </td>
                             <td
@@ -330,6 +339,7 @@
                         <td v-if="isHospitality" class="text-right">
                             $0.00 (0.00%)
                         </td>
+                        <td class="text-right">$0.00</td>
                         <td :class="getCellClass(budget, 1)" class="text-right">
                             <BudgetInput
                                 :value="getBudgetValue(budget, 1)"
@@ -408,15 +418,11 @@
                     <tr class="border-t-4 border-gray-400">
                         <td
                             colspan="3"
-                            v-if="isHospitality"
                             class="font-bold bg-primary text-center text-primary-content text-md sticky left-0 z-10"
                         >
                             TOTAL
                         </td>
-                        <td
-                            v-if="!isHospitality"
-                            class="sticky left-32 text-base-content bg-primary/50 font-bold text-md z-10"
-                        ></td>
+
                         <td
                             class="text-right font-bold text-md text-base-content bg-primary/50"
                         >
@@ -449,6 +455,11 @@
                             ${{ formatCurrency(getTotalZeroPercent()) }} ({{
                                 getZeroPercentRate().toFixed(2)
                             }}%)
+                        </td>
+                        <td
+                            class="text-right font-bold text-md text-base-content bg-primary/50"
+                        >
+                            ${{ formatCurrency(getTotalOpen2026()) }}
                         </td>
                         <td
                             class="text-right font-bold text-md text-base-content bg-primary/50"
@@ -563,6 +574,10 @@ const props = defineProps({
         type: Function,
         required: false,
     },
+    getTotalOpen2026: {
+        type: Function,
+        required: false,
+    },
 });
 
 // Group sales data by Brand (hospitality) or Customer Class (non-hospitality)
@@ -642,6 +657,10 @@ const groupedSalesData = computed(() => {
             q4_budget: groupSales.reduce(
                 (sum, sale) =>
                     sum + (parseFloat(props.getBudgetValue(sale, 4)) || 0),
+                0
+            ),
+            open_2026: groupSales.reduce(
+                (sum, sale) => sum + (parseFloat(sale.open_2026) || 0),
                 0
             ),
         };

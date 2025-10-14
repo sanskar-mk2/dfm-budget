@@ -1,7 +1,6 @@
 from sqlmodel import Session, select, text
-from db.dfm_reflect import Sales, Orders, Salesperson
+from db.dfm_reflect import Salesperson
 from typing import List, Dict, Any
-from datetime import datetime
 
 
 class SalesService:
@@ -108,12 +107,33 @@ class SalesService:
         q4_result = self.db.exec(q4_query)
         q4_data = {f"{row.flag}_{row.brand}": dict(row._mapping) for row in q4_result}
 
-        # Step 4: Combine the data
+        # Step 4: Get 2026 open orders data
+        open_2026_query = text(
+            f"""
+            SELECT 
+                flag,
+                brand,
+                SUM(COALESCE(ext_sales, 0)) as open_2026
+            FROM open_orders 
+            WHERE salesperson = {salesman_no}
+              AND requested_ship_date >= '2026-01-01' 
+              AND requested_ship_date < '2027-01-01'
+            GROUP BY flag, brand
+        """
+        )
+
+        open_2026_result = self.db.exec(open_2026_query)
+        open_2026_data = {
+            f"{row.flag}_{row.brand}": dict(row._mapping) for row in open_2026_result
+        }
+
+        # Step 5: Combine the data
         final_data = []
         for item in basic_data:
             key = f"{item['flag']}_{item['brand']}"
             quarterly = quarterly_data.get(key, {})
             q4 = q4_data.get(key, {})
+            open_2026 = open_2026_data.get(key, {})
 
             total_sales = item["total_sales"]
             zero_perc_total_q1_q3 = item["zero_perc_sales_total"]
@@ -137,6 +157,7 @@ class SalesService:
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
                     "q4_sales": q4_sales,
+                    "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
                     "total_sales": total_sales_with_q4,
                     "zero_perc_sales_percent": round(zero_perc_percent, 2),
@@ -241,12 +262,34 @@ class SalesService:
             for row in q4_result
         }
 
-        # Step 4: Combine the data
+        # Step 4: Get 2026 open orders data
+        open_2026_query = text(
+            f"""
+            SELECT 
+                customer_name,
+                COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
+                SUM(COALESCE(ext_sales, 0)) as open_2026
+            FROM open_orders 
+            WHERE salesperson = {salesman_no}
+              AND requested_ship_date >= '2026-01-01' 
+              AND requested_ship_date < '2027-01-01'
+            GROUP BY customer_name, derived_customer_class
+        """
+        )
+
+        open_2026_result = self.db.exec(open_2026_query)
+        open_2026_data = {
+            f"{row.customer_name}_{row.derived_customer_class}": dict(row._mapping)
+            for row in open_2026_result
+        }
+
+        # Step 5: Combine the data
         final_data = []
         for item in basic_data:
             key = f"{item['customer_name']}_{item['derived_customer_class']}"
             quarterly = quarterly_data.get(key, {})
             q4 = q4_data.get(key, {})
+            open_2026 = open_2026_data.get(key, {})
 
             total_sales = item["total_sales"]
             zero_perc_total_q1_q3 = item["zero_perc_sales_total"]
@@ -268,6 +311,7 @@ class SalesService:
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
                     "q4_sales": q4_sales,
+                    "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
                     "total_sales": total_sales_with_q4,
                     "zero_perc_sales_percent": round(zero_perc_percent, 2),
@@ -324,6 +368,7 @@ class SalesService:
                 "total_q2": 0,
                 "total_q3": 0,
                 "total_q4": 0,
+                "total_open_2026": 0,
                 "avg_zero_perc_sales": 0,
             }
 
@@ -333,6 +378,7 @@ class SalesService:
         total_q2 = sum(row.get("q2_sales", 0) for row in sales_data)
         total_q3 = sum(row.get("q3_sales", 0) for row in sales_data)
         total_q4 = sum(row.get("q4_sales", 0) for row in sales_data)
+        total_open_2026 = sum(row.get("open_2026", 0) for row in sales_data)
 
         zero_perc_values = [
             row.get("zero_perc_sales_percent", 0)
@@ -350,6 +396,7 @@ class SalesService:
             "total_q2": total_q2,
             "total_q3": total_q3,
             "total_q4": total_q4,
+            "total_open_2026": total_open_2026,
             "avg_zero_perc_sales": round(avg_zero_perc_sales, 2),
         }
 
@@ -367,6 +414,7 @@ class SalesService:
                 "total_q2": 0,
                 "total_q3": 0,
                 "total_q4": 0,
+                "total_open_2026": 0,
                 "avg_zero_perc_sales": 0,
             }
 
@@ -376,6 +424,7 @@ class SalesService:
         total_q2 = sum(row.get("q2_sales", 0) for row in sales_data)
         total_q3 = sum(row.get("q3_sales", 0) for row in sales_data)
         total_q4 = sum(row.get("q4_sales", 0) for row in sales_data)
+        total_open_2026 = sum(row.get("open_2026", 0) for row in sales_data)
 
         zero_perc_values = [
             row.get("zero_perc_sales_percent", 0)
@@ -393,5 +442,6 @@ class SalesService:
             "total_q2": total_q2,
             "total_q3": total_q3,
             "total_q4": total_q4,
+            "total_open_2026": total_open_2026,
             "avg_zero_perc_sales": round(avg_zero_perc_sales, 2),
         }

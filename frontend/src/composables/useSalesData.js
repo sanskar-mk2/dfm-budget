@@ -1,40 +1,39 @@
-import { ref, computed } from 'vue';
-import { useAuthStore } from '@/stores/auth';
+import { ref, computed } from "vue";
+import { useAuthStore } from "@/stores/auth";
 
 export function useSalesData() {
     const authStore = useAuthStore();
     const { apiCall } = authStore;
-    
+
     const sales = ref([]);
     const loading = ref(false);
-    const error = ref('');
+    const error = ref("");
 
     const isHospitality = computed(() => {
-        const role = authStore.currentSalesperson?.role || '';
-        return role.startsWith('Hospitality');
+        const role = authStore.currentSalesperson?.role || "";
+        return role.startsWith("Hospitality");
     });
 
     const fetchSales = async () => {
         loading.value = true;
-        error.value = '';
+        error.value = "";
 
         try {
-            const response = await apiCall('/api/sales');
+            const response = await apiCall("/api/sales");
 
             if (!response.ok) {
-                throw new Error('Failed to fetch sales data');
+                throw new Error("Failed to fetch sales data");
             }
 
             const data = await response.json();
             sales.value = data.data || [];
         } catch (err) {
             error.value = err.message;
-            console.error('Error fetching sales:', err);
+            console.error("Error fetching sales:", err);
         } finally {
             loading.value = false;
         }
     };
-
 
     // Summary calculation functions
     const getTotalQ1 = () => {
@@ -85,6 +84,13 @@ export function useSalesData() {
         return totalSales > 0 ? (totalZeroPercent / totalSales) * 100 : 0;
     };
 
+    const getTotalOpen2026 = () => {
+        return sales.value.reduce(
+            (sum, sale) => sum + (parseFloat(sale.open_2026) || 0),
+            0
+        );
+    };
+
     return {
         sales,
         loading,
@@ -97,6 +103,7 @@ export function useSalesData() {
         getTotalQ4,
         getTotalSales,
         getTotalZeroPercent,
-        getZeroPercentRate
+        getZeroPercentRate,
+        getTotalOpen2026,
     };
 }

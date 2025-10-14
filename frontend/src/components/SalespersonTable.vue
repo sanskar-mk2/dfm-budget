@@ -51,6 +51,7 @@ const formatNumber = (num) =>
                         <th>Q4 Orders</th>
                         <th>Total Sales</th>
                         <th>0% Sales (Rate)</th>
+                        <th>2026 Open</th>
                         <th>Q1 Budget</th>
                         <th>Q2 Budget</th>
                         <th>Q3 Budget</th>
@@ -118,6 +119,9 @@ const formatNumber = (num) =>
                             </div>
                         </td>
                         <td class="text-right">
+                            ${{ formatNumber(p.open_2026) }}
+                        </td>
+                        <td class="text-right">
                             ${{ formatNumber(p.q1_budget) }}
                         </td>
                         <td class="text-right">
@@ -133,12 +137,22 @@ const formatNumber = (num) =>
                             ${{ formatNumber(p.total_budget) }}
                         </td>
                         <td class="text-right">
-                            {{ p.total_sales !== 0 ? (((p.total_budget - p.total_sales) / p.total_sales) * 100).toFixed(2) : '0.00' }}%
+                            {{
+                                p.total_sales !== 0
+                                    ? (
+                                          ((p.total_budget - p.total_sales) /
+                                              p.total_sales) *
+                                          100
+                                      ).toFixed(2)
+                                    : "0.00"
+                            }}%
                         </td>
                     </tr>
 
                     <!-- Subtotal -->
-                    <tr class="font-bold bg-secondary text-secondary-content [&:nth-child(even)]:bg-secondary [&:nth-child(odd)]:bg-secondary">
+                    <tr
+                        class="font-bold bg-secondary text-secondary-content [&:nth-child(even)]:bg-secondary [&:nth-child(odd)]:bg-secondary"
+                    >
                         <td colspan="2" class="text-center">Subtotal</td>
                         <td class="text-right">
                             ${{ formatNumber(subtotals.q1_sales) }}
@@ -166,6 +180,9 @@ const formatNumber = (num) =>
                             </div>
                         </td>
                         <td class="text-right">
+                            ${{ formatNumber(subtotals.open_2026) }}
+                        </td>
+                        <td class="text-right">
                             ${{ formatNumber(subtotals.q1_budget) }}
                         </td>
                         <td class="text-right">
@@ -181,7 +198,16 @@ const formatNumber = (num) =>
                             ${{ formatNumber(subtotals.total_budget) }}
                         </td>
                         <td class="text-right">
-                            {{ subtotals.total_sales !== 0 ? (((subtotals.total_budget - subtotals.total_sales) / subtotals.total_sales) * 100).toFixed(2) : '0.00' }}%
+                            {{
+                                subtotals.total_sales !== 0
+                                    ? (
+                                          ((subtotals.total_budget -
+                                              subtotals.total_sales) /
+                                              subtotals.total_sales) *
+                                          100
+                                      ).toFixed(2)
+                                    : "0.00"
+                            }}%
                         </td>
                     </tr>
                 </tbody>

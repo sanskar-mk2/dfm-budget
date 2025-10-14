@@ -1,7 +1,7 @@
 <template>
     <div v-if="sales.length > 0" class="mt-8 p-4 bg-base-200 rounded-lg">
         <h3 class="text-lg font-semibold mb-4">Sales & Budget Summary</h3>
-        
+
         <!-- Sales Summary -->
         <div class="mb-6">
             <h4 class="text-md font-medium mb-3 text-primary">Sales</h4>
@@ -45,7 +45,15 @@
                 <div class="stat">
                     <div class="stat-title">0% Sales (Rate)</div>
                     <div class="stat-value">
-                        ${{ formatCurrency(getTotalZeroPercent()) }} ({{ getZeroPercentRate().toFixed(2) }}%)
+                        ${{ formatCurrency(getTotalZeroPercent()) }} ({{
+                            getZeroPercentRate().toFixed(2)
+                        }}%)
+                    </div>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">2026 Open</div>
+                    <div class="stat-value text-info">
+                        ${{ formatCurrency(getTotalOpen2026()) }}
                     </div>
                 </div>
             </div>
@@ -87,8 +95,18 @@
                 </div>
                 <div class="stat">
                     <div class="stat-title">Growth</div>
-                    <div class="stat-value" :class="getGrowthClass(getTotalSales(), getTotalBudget())">
-                        {{ getGrowthPercent(getTotalSales(), getTotalBudget()).toFixed(2) }}%
+                    <div
+                        class="stat-value"
+                        :class="
+                            getGrowthClass(getTotalSales(), getTotalBudget())
+                        "
+                    >
+                        {{
+                            getGrowthPercent(
+                                getTotalSales(),
+                                getTotalBudget()
+                            ).toFixed(2)
+                        }}%
                     </div>
                 </div>
             </div>
@@ -97,61 +115,65 @@
 </template>
 
 <script setup>
-import { formatCurrency, getZeroPercentClass } from '@/utils/formatters';
+import { formatCurrency, getZeroPercentClass } from "@/utils/formatters";
 
 defineProps({
     sales: {
         type: Array,
-        required: true
+        required: true,
     },
     getTotalQ1: {
         type: Function,
-        required: true
+        required: true,
     },
     getTotalQ2: {
         type: Function,
-        required: true
+        required: true,
     },
     getTotalQ3: {
         type: Function,
-        required: true
+        required: true,
     },
     getTotalQ4: {
         type: Function,
-        required: true
+        required: true,
     },
     getTotalSales: {
         type: Function,
-        required: true
+        required: true,
     },
     getTotalZeroPercent: {
         type: Function,
-        required: true
+        required: true,
     },
     getZeroPercentRate: {
         type: Function,
-        required: true
+        required: true,
     },
     getTotalQ1Budget: {
         type: Function,
-        required: false
+        required: false,
     },
     getTotalQ2Budget: {
         type: Function,
-        required: false
+        required: false,
     },
     getTotalQ3Budget: {
         type: Function,
-        required: false
+        required: false,
     },
     getTotalQ4Budget: {
         type: Function,
-        required: false
+        required: false,
     },
     getTotalBudget: {
         type: Function,
-        required: false
-    }
+        required: false,
+    },
+    getTotalOpen2026: {
+        type: Function,
+        required: false,
+    },
 });
 
 const getGrowthPercent = (sales, budget) => {
@@ -161,8 +183,8 @@ const getGrowthPercent = (sales, budget) => {
 
 const getGrowthClass = (sales, budget) => {
     const growth = getGrowthPercent(sales, budget);
-    if (growth > 0) return 'text-success';
-    if (growth < 0) return 'text-error';
-    return 'text-base-content';
+    if (growth > 0) return "text-success";
+    if (growth < 0) return "text-error";
+    return "text-base-content";
 };
 </script>

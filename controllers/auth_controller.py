@@ -10,7 +10,7 @@ from datetime import timedelta
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import select
 from constants import ACCESS_TOKEN_EXPIRE_MINUTES, SUPERADMIN, ADMIN
-from servies.auth_service import authenticate_user, create_access_token
+from services.auth_service import authenticate_user, create_access_token
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")

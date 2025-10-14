@@ -173,6 +173,7 @@ export function useAdminData() {
                     q4_budget: b
                         ? formatCurrencyForCSV(b.quarter_4_sales)
                         : "0.00",
+                    open_2026: formatCurrencyForCSV(s.open_2026),
                     growth_percent: isNaN(growthPercent)
                         ? "0.00"
                         : growthPercent.toFixed(2),

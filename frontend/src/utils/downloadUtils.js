@@ -102,6 +102,7 @@ export function getSalesBudgetHeaders(isHospitality, isMixed = false) {
         { key: 'total_sales', label: 'Total Sales' },
         { key: 'zero_perc_sales_total', label: 'Zero % Sales' },
         { key: 'zero_perc_sales_percent', label: 'Zero % %' },
+        { key: 'open_2026', label: '2026 Open' },
         { key: 'q1_budget', label: 'Q1 Budget' },
         { key: 'q2_budget', label: 'Q2 Budget' },
         { key: 'q3_budget', label: 'Q3 Budget' },

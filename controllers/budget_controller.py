@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlmodel import Session
 from db.core import get_readonly_session, get_session
-from servies.budget_service import BudgetService
-from servies.sales_service import SalesService
-from servies.admin_service import AdminService
+from services.budget_service import BudgetService
+from services.sales_service import SalesService
+from services.admin_service import AdminService
 from typing import Dict, Any, List
 from pydantic import BaseModel
 

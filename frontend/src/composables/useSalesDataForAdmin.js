@@ -87,6 +87,13 @@ export function useSalesDataForAdmin(salespersonId) {
         return totalSales > 0 ? (totalZeroPercent / totalSales) * 100 : 0;
     };
 
+    const getTotalOpen2026 = () => {
+        return sales.value.reduce(
+            (sum, sale) => sum + (parseFloat(sale.open_2026) || 0),
+            0
+        );
+    };
+
     return {
         sales,
         loading,
@@ -101,5 +108,6 @@ export function useSalesDataForAdmin(salespersonId) {
         getTotalSales,
         getTotalZeroPercent,
         getZeroPercentRate,
+        getTotalOpen2026,
     };
 }

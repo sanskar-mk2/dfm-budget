@@ -48,6 +48,7 @@
                 :get-total-sales="getTotalSales"
                 :get-total-zero-percent="getTotalZeroPercent"
                 :get-zero-percent-rate="getZeroPercentRate"
+                :get-total-open-2026="getTotalOpen2026"
                 :get-total-q1-budget="getTotalQ1Budget"
                 :get-total-q2-budget="getTotalQ2Budget"
                 :get-total-q3-budget="getTotalQ3Budget"
@@ -106,6 +107,7 @@ const {
     getTotalSales,
     getTotalZeroPercent,
     getZeroPercentRate,
+    getTotalOpen2026,
 } = useSalesDataForAdmin(salespersonId);
 
 const {

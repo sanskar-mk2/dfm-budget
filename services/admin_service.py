@@ -1,5 +1,5 @@
 from sqlmodel import Session, select, text
-from db.dfm_reflect import Sales, Orders, Salesperson, Users
+from db.dfm_reflect import Users
 from db.budget_models import Budget
 from typing import List, Dict, Any
 from constants import SUPERADMIN, ADMIN
@@ -64,6 +64,7 @@ class AdminService:
                     "q2_sales": float(sales_data["q2_sales"] or 0),
                     "q3_sales": float(sales_data["q3_sales"] or 0),
                     "q4_sales": float(sales_data["q4_sales"] or 0),
+                    "open_2026": float(sales_data["open_2026"] or 0),
                     "total_sales": total_sales,
                     "zero_perc_sales": float(sales_data["zero_perc_sales"] or 0),
                     "zero_perc_sales_percent": float(
@@ -132,6 +133,23 @@ class AdminService:
             else {"q4_sales": 0, "zero_perc_sales_q4": 0}
         )
 
+        # 2026 open orders
+        open_2026_query = text(
+            f"""
+            SELECT 
+                SUM(COALESCE(ext_sales, 0)) as open_2026
+            FROM open_orders 
+            WHERE salesperson = {salesman_no}
+              AND requested_ship_date >= '2026-01-01' 
+              AND requested_ship_date < '2027-01-01'
+        """
+        )
+
+        open_2026_result = self.db.exec(open_2026_query).first()
+        open_2026_data = (
+            dict(open_2026_result._mapping) if open_2026_result else {"open_2026": 0}
+        )
+
         # Calculate totals with null safety
         q1_sales = q1_q3_data["q1_sales"] or 0
         q2_sales = q1_q3_data["q2_sales"] or 0
@@ -151,6 +169,7 @@ class AdminService:
             "q2_sales": float(q2_sales),
             "q3_sales": float(q3_sales),
             "q4_sales": float(q4_sales),
+            "open_2026": float(open_2026_data["open_2026"] or 0),
             "zero_perc_sales": float(total_zero_perc_sales),
             "zero_perc_sales_percent": round(float(zero_perc_sales_percent), 2),
         }

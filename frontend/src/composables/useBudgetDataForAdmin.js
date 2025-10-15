@@ -1,14 +1,16 @@
-import { ref, unref } from "vue";
+import { ref, computed, unref } from "vue";
 import { useAuthStore } from "@/stores/auth";
-import { useSalesDataForAdmin } from "./useSalesDataForAdmin";
 
 export function useBudgetDataForAdmin(salespersonId) {
     const authStore = useAuthStore();
     const { apiCall } = authStore;
 
-    // Get hospitality status and salesperson info from sales data
-    const { isHospitality, salespersonInfo } =
-        useSalesDataForAdmin(salespersonId);
+    // Local salesperson info for budget composable
+    const salespersonInfo = ref(null);
+
+    const isHospitality = computed(() => {
+        return salespersonInfo.value?.is_hospitality || false;
+    });
 
     const budgets = ref([]);
     const budgetMap = ref({});
@@ -24,8 +26,25 @@ export function useBudgetDataForAdmin(salespersonId) {
 
     let autoSaveTimer = null;
 
+    const fetchSalespersonInfo = async () => {
+        try {
+            const id = unref(salespersonId);
+            const response = await apiCall(`/api/sales/${id}`);
+            if (!response.ok)
+                throw new Error("Failed to fetch salesperson info");
+
+            const data = await response.json();
+            salespersonInfo.value = data.salesperson_info || null;
+        } catch (err) {
+            console.error("Error fetching salesperson info:", err);
+        }
+    };
+
     const fetchBudgets = async () => {
         try {
+            // Fetch salesperson info first to get hospitality status
+            await fetchSalespersonInfo();
+
             // Use unref to get the actual value from reactive references
             const id = unref(salespersonId);
             const response = await apiCall(`/api/budget/${id}`);
@@ -420,6 +439,8 @@ export function useBudgetDataForAdmin(salespersonId) {
         savedCells,
         inputValues,
         autosuggestData,
+        salespersonInfo,
+        isHospitality,
         fetchBudgets,
         saveBudgetCell,
         getBudgetValue,

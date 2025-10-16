@@ -1,35 +1,35 @@
 <script setup>
-import DivisionSlider from './DivisionSlider.vue'
+import DivisionSlider from "./DivisionSlider.vue";
 
 const props = defineProps({
     divisions: {
         type: Array,
-        required: true
+        required: true,
     },
     readonly: {
         type: Boolean,
-        default: false
-    }
-})
+        default: false,
+    },
+});
 
-const emit = defineEmits(['ratio-change', 'lock-toggle'])
+const emit = defineEmits(["ratio-change", "lock-toggle"]);
 
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
         minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(value)
-}
+        maximumFractionDigits: 0,
+    }).format(value);
+};
 
 const handleRatioChange = (divisionIndex, newRatio) => {
-    emit('ratio-change', divisionIndex, newRatio)
-}
+    emit("ratio-change", divisionIndex, newRatio);
+};
 
 const handleLockToggle = (divisionIndex) => {
-    emit('lock-toggle', divisionIndex)
-}
+    emit("lock-toggle", divisionIndex);
+};
 </script>
 
 <template>
@@ -48,12 +48,22 @@ const handleLockToggle = (divisionIndex) => {
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="(division, index) in divisions" :key="division.item_division">
-                    <td class="text-sm opacity-60">{{ division.item_division }}</td>
+                <tr
+                    v-for="(division, index) in divisions"
+                    :key="division.item_division"
+                >
+                    <td class="text-sm opacity-60">
+                        {{ division.item_division }}
+                    </td>
                     <td>
                         <div class="flex flex-col">
-                            <span class="font-medium">{{ division.division_name }}</span>
-                            <span v-if="division.is_custom" class="text-xs badge badge-primary badge-sm">
+                            <span class="font-medium">{{
+                                division.division_name
+                            }}</span>
+                            <span
+                                v-if="division.is_custom"
+                                class="text-xs badge badge-primary badge-sm"
+                            >
                                 Custom
                             </span>
                         </div>
@@ -64,7 +74,9 @@ const handleLockToggle = (divisionIndex) => {
                             :locked="division.locked"
                             :division-name="division.division_name"
                             :disabled="readonly"
-                            @ratio-change="(newRatio) => handleRatioChange(index, newRatio)"
+                            @ratio-change="
+                                (newRatio) => handleRatioChange(index, newRatio)
+                            "
                             @lock-toggle="() => handleLockToggle(index)"
                         />
                     </td>

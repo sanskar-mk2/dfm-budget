@@ -12,7 +12,8 @@ class DivisionService:
         """
         Get division allocations with custom ratio overrides applied
         """
-        query = text("""
+        query = text(
+            """
             WITH sales_norm AS (
               SELECT
                 CASE WHEN s.derived_customer_class = 'Hospitality'
@@ -66,6 +67,8 @@ class DivisionService:
                      ELSE b.customer_class END            AS customer_class,
                 CASE WHEN b.customer_class LIKE 'Hospitality%' THEN NULLIF(TRIM(b.flag),'')
                      ELSE NULLIF(TRIM(b.customer_name),'') END AS group_key,
+                CASE WHEN b.customer_class LIKE 'Hospitality%' THEN NULLIF(TRIM(b.brand),'')
+                     ELSE NULL END AS brand,
                 b.quarter_1_sales, b.quarter_2_sales, b.quarter_3_sales, b.quarter_4_sales
               FROM dfm_dashboards.budget_2026 b
               WHERE b.is_custom=0
@@ -73,6 +76,7 @@ class DivisionService:
             collapsed_budget AS (        -- collapse per salesperson + group_key
               SELECT
                 salesperson_id, salesperson_name, customer_class, group_key,
+                MAX(brand) AS brand,
                 SUM(quarter_1_sales) AS q1_total,
                 SUM(quarter_2_sales) AS q2_total,
                 SUM(quarter_3_sales) AS q3_total,
@@ -87,7 +91,7 @@ class DivisionService:
               GROUP BY d.div_no
             )
             SELECT
-              b.salesperson_id, b.salesperson_name, b.customer_class, b.group_key,
+              b.salesperson_id, b.salesperson_name, b.customer_class, b.group_key, b.brand,
               d.div_no AS item_division, d.div_desc AS division_name,
               COALESCE(o.custom_ratio, r.division_ratio_2025) AS effective_ratio,
               CASE WHEN o.custom_ratio IS NOT NULL THEN 1 ELSE 0 END AS is_custom,
@@ -109,28 +113,48 @@ class DivisionService:
              AND o.group_key=b.group_key
              AND o.item_division=d.div_no
             ORDER BY b.customer_class, b.salesperson_name, b.group_key, d.div_no
-        """)
+        """
+        )
 
         result = self.db.exec(query)
         division_data = []
-        
+
         for row in result:
-            division_data.append({
-                "salesperson_id": row.salesperson_id,
-                "salesperson_name": row.salesperson_name,
-                "customer_class": row.customer_class,
-                "group_key": row.group_key,
-                "item_division": row.item_division,
-                "division_name": row.division_name,
-                "effective_ratio": float(row.effective_ratio) if row.effective_ratio else 0.0,
-                "is_custom": bool(row.is_custom),
-                "q1_allocated": float(row.q1_allocated) if row.q1_allocated else 0.0,
-                "q2_allocated": float(row.q2_allocated) if row.q2_allocated else 0.0,
-                "q3_allocated": float(row.q3_allocated) if row.q3_allocated else 0.0,
-                "q4_allocated": float(row.q4_allocated) if row.q4_allocated else 0.0,
-                "total_allocated": float(row.total_allocated) if row.total_allocated else 0.0,
-                "division_ratio_2025": float(row.division_ratio_2025) if row.division_ratio_2025 else 0.0
-            })
+            division_data.append(
+                {
+                    "salesperson_id": row.salesperson_id,
+                    "salesperson_name": row.salesperson_name,
+                    "customer_class": row.customer_class,
+                    "group_key": row.group_key,
+                    "brand": row.brand,
+                    "item_division": row.item_division,
+                    "division_name": row.division_name,
+                    "effective_ratio": (
+                        float(row.effective_ratio) if row.effective_ratio else 0.0
+                    ),
+                    "is_custom": bool(row.is_custom),
+                    "q1_allocated": (
+                        float(row.q1_allocated) if row.q1_allocated else 0.0
+                    ),
+                    "q2_allocated": (
+                        float(row.q2_allocated) if row.q2_allocated else 0.0
+                    ),
+                    "q3_allocated": (
+                        float(row.q3_allocated) if row.q3_allocated else 0.0
+                    ),
+                    "q4_allocated": (
+                        float(row.q4_allocated) if row.q4_allocated else 0.0
+                    ),
+                    "total_allocated": (
+                        float(row.total_allocated) if row.total_allocated else 0.0
+                    ),
+                    "division_ratio_2025": (
+                        float(row.division_ratio_2025)
+                        if row.division_ratio_2025
+                        else 0.0
+                    ),
+                }
+            )
 
         return division_data
 
@@ -141,15 +165,18 @@ class DivisionService:
         try:
             saved_count = 0
             updated_count = 0
-            
+
             for override in overrides:
                 # Check if override already exists
                 existing = self.db.exec(
                     select(DivisionRatioOverride).where(
-                        DivisionRatioOverride.salesperson_id == override["salesperson_id"],
-                        DivisionRatioOverride.customer_class == override["customer_class"],
+                        DivisionRatioOverride.salesperson_id
+                        == override["salesperson_id"],
+                        DivisionRatioOverride.customer_class
+                        == override["customer_class"],
                         DivisionRatioOverride.group_key == override["group_key"],
-                        DivisionRatioOverride.item_division == override["item_division"]
+                        DivisionRatioOverride.item_division
+                        == override["item_division"],
                     )
                 ).first()
 
@@ -166,26 +193,31 @@ class DivisionService:
                         customer_class=override["customer_class"],
                         group_key=override["group_key"],
                         item_division=override["item_division"],
-                        custom_ratio=override["custom_ratio"]
+                        custom_ratio=override["custom_ratio"],
                     )
                     self.db.add(new_override)
                     saved_count += 1
 
             self.db.commit()
-            
+
             return {
                 "success": True,
                 "saved_count": saved_count,
                 "updated_count": updated_count,
-                "total_processed": len(overrides)
+                "total_processed": len(overrides),
             }
-            
+
         except Exception as e:
             self.db.rollback()
             raise e
 
-    def delete_ratio_override(self, salesperson_id: int, customer_class: str, 
-                            group_key: str, item_division: int) -> bool:
+    def delete_ratio_override(
+        self,
+        salesperson_id: int,
+        customer_class: str,
+        group_key: str,
+        item_division: int,
+    ) -> bool:
         """
         Delete a custom ratio override (reset to default)
         """
@@ -195,7 +227,7 @@ class DivisionService:
                     DivisionRatioOverride.salesperson_id == salesperson_id,
                     DivisionRatioOverride.customer_class == customer_class,
                     DivisionRatioOverride.group_key == group_key,
-                    DivisionRatioOverride.item_division == item_division
+                    DivisionRatioOverride.item_division == item_division,
                 )
             ).first()
 
@@ -204,7 +236,35 @@ class DivisionService:
                 self.db.commit()
                 return True
             return False
-            
+
+        except Exception as e:
+            self.db.rollback()
+            raise e
+
+    def delete_group_overrides(
+        self, salesperson_id: int, customer_class: str, group_key: str
+    ) -> int:
+        """
+        Delete all custom ratio overrides for a specific group
+        """
+        try:
+            result = self.db.exec(
+                text(
+                    """
+                    DELETE FROM division_ratio_overrides 
+                    WHERE salesperson_id = :salesperson_id 
+                    AND customer_class = :customer_class 
+                    AND group_key = :group_key
+                """
+                ).bindparams(
+                    salesperson_id=salesperson_id,
+                    customer_class=customer_class,
+                    group_key=group_key,
+                )
+            )
+            self.db.commit()
+            return result.rowcount
+
         except Exception as e:
             self.db.rollback()
             raise e
@@ -217,7 +277,7 @@ class DivisionService:
             result = self.db.exec(text("DELETE FROM division_ratio_overrides"))
             self.db.commit()
             return result.rowcount
-            
+
         except Exception as e:
             self.db.rollback()
             raise e

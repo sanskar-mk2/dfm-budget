@@ -35,16 +35,12 @@ async def get_division_allocations(
     try:
         # Get username from request state (set by auth middleware)
         username = request.state.user["username"]
-        print(f"Get allocations - Username: {username}")
 
         # Initialize admin service
         admin_service = AdminService(db)
 
         # Check if user is admin
-        is_admin_result = admin_service.is_admin(username)
-        print(f"Get allocations - Is admin check result: {is_admin_result}")
-        
-        if not is_admin_result:
+        if not admin_service.is_admin(username):
             raise HTTPException(
                 status_code=403, detail="Access denied. Admin privileges required."
             )
@@ -81,16 +77,12 @@ async def save_division_ratios(
     try:
         # Get username from request state (set by auth middleware)
         username = request.state.user["username"]
-        print(f"Save ratios - Username: {username}")
 
         # Initialize admin service
         admin_service = AdminService(db)
 
         # Check if user is admin
-        is_admin_result = admin_service.is_admin(username)
-        print(f"Save ratios - Is admin check result: {is_admin_result}")
-        
-        if not is_admin_result:
+        if not admin_service.is_admin(username):
             raise HTTPException(
                 status_code=403, detail="Access denied. Admin privileges required."
             )
@@ -115,4 +107,48 @@ async def save_division_ratios(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error saving division ratios: {str(e)}"
+        )
+
+
+@router.delete("/division/reset-group/{salesperson_id}/{customer_class}/{group_key}")
+async def reset_group_overrides(
+    salesperson_id: int,
+    customer_class: str, 
+    group_key: str,
+    request: Request,
+    db: Session = Depends(get_session)
+) -> Dict[str, Any]:
+    """
+    Reset custom division ratio overrides for a specific group
+    Only accessible by admin users
+    """
+    try:
+        # Get username from request state (set by auth middleware)
+        username = request.state.user["username"]
+
+        # Initialize admin service
+        admin_service = AdminService(db)
+
+        # Check if user is admin
+        if not admin_service.is_admin(username):
+            raise HTTPException(
+                status_code=403, detail="Access denied. Admin privileges required."
+            )
+
+        # Initialize division service and delete overrides
+        division_service = DivisionService(db)
+        deleted_count = division_service.delete_group_overrides(salesperson_id, customer_class, group_key)
+
+        return {
+            "success": True,
+            "message": f"Successfully reset {deleted_count} custom overrides for group",
+            "deleted_count": deleted_count,
+            "user_info": {"username": username, "is_admin": True},
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error resetting group overrides: {str(e)}"
         )

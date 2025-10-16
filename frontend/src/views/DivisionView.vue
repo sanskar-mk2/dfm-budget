@@ -5,7 +5,7 @@ import DivisionGroupCard from "@/components/DivisionGroupCard.vue";
 import LoadingError from "@/components/LoadingError.vue";
 
 const navActions = inject("navActions");
-const { loading, error, groupedData, fetchDivisionData, saveRatios, resetAllOverrides } = useDivisionData();
+const { loading, error, groupedData, fetchDivisionData, saveRatios, resetGroupOverrides, resetAllOverrides } = useDivisionData();
 
 const handleSaveRatios = async (groupKey, divisions) => {
     try {
@@ -13,6 +13,14 @@ const handleSaveRatios = async (groupKey, divisions) => {
     } catch (error) {
         console.error("Error saving ratios:", error);
         // You might want to show a toast notification here
+    }
+};
+
+const handleResetGroup = async (salespersonId, customerClass, groupKey) => {
+    try {
+        await resetGroupOverrides(salespersonId, customerClass, groupKey);
+    } catch (error) {
+        console.error("Error resetting group overrides:", error);
     }
 };
 
@@ -101,6 +109,7 @@ onUnmounted(() => navActions.clear());
                 :key="`${group.salesperson_id}-${group.customer_class}-${group.group_key}`"
                 :group="group"
                 @save-ratios="handleSaveRatios"
+                @reset-group="handleResetGroup"
             />
         </div>
 

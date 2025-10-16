@@ -23,6 +23,18 @@ const router = createRouter({
             meta: { requiresAuth: true, requiresAdmin: true },
         },
         {
+            path: "/division",
+            name: "division",
+            component: () => import("../views/DivisionView.vue"),
+            meta: { requiresAuth: true, requiresAdmin: true },
+        },
+        {
+            path: "/gross-profit",
+            name: "gross-profit",
+            component: () => import("../views/GrossProfitView.vue"),
+            meta: { requiresAuth: true, requiresAdmin: true },
+        },
+        {
             path: "/login",
             name: "login",
             component: () => import("../views/LoginView.vue"),

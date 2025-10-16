@@ -137,7 +137,7 @@ provide("navActions", {
 
             <div class="navbar-end">
                 <button
-                    v-if="!isAdminView"
+                    v-if="route.name === 'salesperson' && authStore.adminStatus"
                     @click="openAddBudgetModal"
                     class="btn btn-primary mr-2"
                 >

@@ -30,6 +30,20 @@ onMounted(() => {
     fetchAdminSummary();
     navActions.set([
         {
+            id: "division-view",
+            text: "Division View",
+            class: "btn btn-secondary mr-2",
+            handler: () => router.push("/division"),
+            icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
+        },
+        {
+            id: "gross-profit-view",
+            text: "Gross Profit View",
+            class: "btn btn-accent mr-2",
+            handler: () => router.push("/gross-profit"),
+            icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>',
+        },
+        {
             id: "download-full-budget",
             text: "Download Full Budget Sheet",
             class: "btn btn-primary",

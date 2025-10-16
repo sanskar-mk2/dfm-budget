@@ -100,11 +100,16 @@ class DivisionService:
               ROUND(b.q3_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q3_allocated,
               ROUND(b.q4_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q4_allocated,
               ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS total_allocated,
-              r.division_ratio_2025
+              r.division_ratio_2025,
+              gs.total_sales AS total_2025_sales
             FROM collapsed_budget b
             JOIN ratios r
               ON r.group_key=b.group_key
              AND r.customer_class=b.customer_class
+            JOIN grouped_sales gs
+              ON gs.group_key=r.group_key
+             AND gs.customer_class=r.customer_class
+             AND gs.item_division=r.item_division
             JOIN divisions_dedup d
               ON d.div_no=r.item_division
             LEFT JOIN division_ratio_overrides o
@@ -151,6 +156,11 @@ class DivisionService:
                     "division_ratio_2025": (
                         float(row.division_ratio_2025)
                         if row.division_ratio_2025
+                        else 0.0
+                    ),
+                    "total_2025_sales": (
+                        float(row.total_2025_sales)
+                        if row.total_2025_sales
                         else 0.0
                     ),
                 }

@@ -44,6 +44,7 @@ export function useDivisionData() {
                 q4_allocated: item.q4_allocated,
                 total_allocated: item.total_allocated,
                 division_ratio_2025: item.division_ratio_2025,
+                total_2025_sales: item.total_2025_sales,
                 locked: false, // UI state for lock toggle
             };
 

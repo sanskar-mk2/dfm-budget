@@ -205,8 +205,23 @@ class AdminService:
 
     def is_admin(self, username: str) -> bool:
         """Check if user is an admin (salesman_id = 0 or null)"""
-        user = self.db.exec(select(Users).where(Users.username == username)).first()
-        if not user:
-            return False
+        try:
+            user = self.db.exec(select(Users).where(Users.username == username)).first()
+            print(f"Admin check - Username: {username}")
+            print(f"Admin check - User found: {user is not None}")
+            if user:
+                print(f"Admin check - User salesman_id: {user.salesman_id}")
+                print(f"Admin check - SUPERADMIN: {SUPERADMIN}")
+                print(f"Admin check - ADMIN: {ADMIN}")
+                print(f"Admin check - salesman_id == SUPERADMIN: {user.salesman_id == SUPERADMIN}")
+                print(f"Admin check - salesman_id is ADMIN: {user.salesman_id is ADMIN}")
+            else:
+                print(f"Admin check - No user found with username: {username}")
+            
+            if not user:
+                return False
 
-        return user.salesman_id == SUPERADMIN or user.salesman_id is ADMIN
+            return user.salesman_id == SUPERADMIN or user.salesman_id is ADMIN
+        except Exception as e:
+            print(f"Admin check - Exception: {e}")
+            return False

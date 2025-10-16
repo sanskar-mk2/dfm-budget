@@ -1,42 +1,39 @@
 <script setup>
-import { onMounted, onUnmounted, inject, ref } from "vue";
-import { useAuthStore } from "@/stores/auth";
+import { onMounted, onUnmounted, inject } from "vue";
+import { useDivisionData } from "@/composables/useDivisionData";
+import DivisionGroupCard from "@/components/DivisionGroupCard.vue";
+import LoadingError from "@/components/LoadingError.vue";
 
 const navActions = inject("navActions");
-const authStore = useAuthStore();
-const loading = ref(false);
-const error = ref(null);
-const divisionData = ref([]);
+const { loading, error, groupedData, fetchDivisionData, saveRatios, resetAllOverrides } = useDivisionData();
 
-const fetchDivisionData = async () => {
-    loading.value = true;
-    error.value = null;
-    
+const handleSaveRatios = async (groupKey, divisions) => {
     try {
-        console.log("Fetching division allocations...");
-        const response = await authStore.apiCall("/api/division/allocations");
-        
-        if (response.ok) {
-            const result = await response.json();
-            console.log("Division allocations response:", result);
-            divisionData.value = result.data || [];
-            console.log("Division data:", divisionData.value);
-        } else {
-            const errorData = await response.json();
-            console.error("Error fetching division data:", errorData);
-            error.value = errorData.detail || "Failed to fetch division data";
-        }
-    } catch (err) {
-        console.error("Exception fetching division data:", err);
-        error.value = "Network error occurred";
-    } finally {
-        loading.value = false;
+        await saveRatios(groupKey, divisions);
+    } catch (error) {
+        console.error("Error saving ratios:", error);
+        // You might want to show a toast notification here
+    }
+};
+
+const handleResetAll = async () => {
+    try {
+        await resetAllOverrides();
+    } catch (error) {
+        console.error("Error resetting overrides:", error);
     }
 };
 
 onMounted(() => {
     // Set navigation actions for this view
     navActions.set([
+        {
+            id: "reset-all-overrides",
+            text: "Reset All Overrides",
+            class: "btn btn-warning mr-2",
+            handler: handleResetAll,
+            icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>',
+        },
         {
             id: "back-to-admin",
             text: "Back to Admin",
@@ -58,35 +55,61 @@ onUnmounted(() => navActions.clear());
 
 <template>
     <div class="p-6 space-y-6">
+        <!-- Header -->
         <div class="hero bg-base-200 rounded-lg">
             <div class="hero-content text-center">
-                <div class="max-w-md">
-                    <h1 class="text-5xl font-bold">Division View</h1>
+                <div class="max-w-4xl">
+                    <h1 class="text-5xl font-bold">Division Ratio Management</h1>
                     <p class="py-6">
-                        This is the Division view. Content will be added here in the future.
+                        Adjust division ratios for budget allocation. Use sliders to modify ratios and lock divisions to prevent changes.
                     </p>
-                    
-                    <!-- Loading State -->
-                    <div v-if="loading" class="flex justify-center">
-                        <span class="loading loading-spinner loading-lg"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading and Error States -->
+        <LoadingError 
+            :loading="loading" 
+            :error="error" 
+            @retry="fetchDivisionData" 
+        />
+
+        <!-- Division Groups -->
+        <div v-if="!loading && !error && groupedData.length > 0" class="space-y-6">
+            <div class="stats shadow mb-6">
+                <div class="stat">
+                    <div class="stat-title">Total Groups</div>
+                    <div class="stat-value text-primary">{{ groupedData.length }}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">Groups with Custom Ratios</div>
+                    <div class="stat-value text-secondary">
+                        {{ groupedData.filter(g => g.hasCustomRatios).length }}
                     </div>
-                    
-                    <!-- Error State -->
-                    <div v-else-if="error" class="alert alert-error">
-                        <span>{{ error }}</span>
-                    </div>
-                    
-                    <!-- Success State -->
-                    <div v-else-if="divisionData.length > 0" class="alert alert-success">
-                        <span>Successfully loaded {{ divisionData.length }} division records</span>
-                    </div>
-                    
-                    <!-- No Data State -->
-                    <div v-else class="alert alert-info">
-                        <span>No division data available</span>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">Total Divisions</div>
+                    <div class="stat-value text-accent">
+                        {{ groupedData.reduce((sum, g) => sum + g.divisions.length, 0) }}
                     </div>
                 </div>
             </div>
+
+            <!-- Group Cards -->
+            <DivisionGroupCard
+                v-for="group in groupedData"
+                :key="`${group.salesperson_id}-${group.customer_class}-${group.group_key}`"
+                :group="group"
+                @save-ratios="handleSaveRatios"
+            />
+        </div>
+
+        <!-- No Data State -->
+        <div v-else-if="!loading && !error && groupedData.length === 0" class="alert alert-info">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>No division data available. Please check your data sources.</span>
         </div>
     </div>
 </template>

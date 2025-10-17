@@ -110,6 +110,52 @@ async def save_division_ratios(
         )
 
 
+@router.get("/division/allocations/{salesperson_id}/{customer_class}/{group_key}")
+async def get_single_division_allocation(
+    salesperson_id: int,
+    customer_class: str,
+    group_key: str,
+    request: Request,
+    db: Session = Depends(get_readonly_session)
+) -> Dict[str, Any]:
+    """
+    Get allocations for a single group only
+    Only accessible by admin users
+    """
+    try:
+        # Get username from request state (set by auth middleware)
+        username = request.state.user["username"]
+
+        # Initialize admin service
+        admin_service = AdminService(db)
+
+        # Check if user is admin
+        if not admin_service.is_admin(username):
+            raise HTTPException(
+                status_code=403, detail="Access denied. Admin privileges required."
+            )
+
+        # Initialize division service and get data for single group
+        division_service = DivisionService(db)
+        data = division_service.get_division_allocations_for_group(
+            salesperson_id, customer_class, group_key
+        )
+
+        return {
+            "success": True,
+            "data": data,
+            "count": len(data),
+            "user_info": {"username": username, "is_admin": True},
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching single group allocations: {str(e)}"
+        )
+
+
 @router.delete("/division/reset-group/{salesperson_id}/{customer_class}/{group_key}")
 async def reset_group_overrides(
     salesperson_id: int,

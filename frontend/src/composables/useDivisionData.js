@@ -89,6 +89,15 @@ export function useDivisionData() {
         }
     };
 
+    const fetchSingleGroup = async (salespersonId, customerClass, groupKey) => {
+        const response = await authStore.apiCall(
+            `/api/division/allocations/${salespersonId}/${encodeURIComponent(customerClass)}/${encodeURIComponent(groupKey)}`
+        );
+        if (!response.ok) throw new Error("Failed to fetch group");
+        const result = await response.json();
+        return result.data || [];
+    };
+
     const saveRatios = async (groupKey, divisions) => {
         try {
             // Find the group data to get salesperson info
@@ -131,8 +140,35 @@ export function useDivisionData() {
             if (response.ok) {
                 const result = await response.json();
 
-                // Refresh data to get updated ratios
-                await fetchDivisionData();
+                // Fetch only updated group
+                const updatedRows = await fetchSingleGroup(group.salesperson_id, group.customer_class, group.group_key);
+
+                // Replace that group locally while maintaining position
+                const newData = [...divisionData.value];
+                const groupRows = newData.filter(
+                    i => i.group_key === group.group_key && i.salesperson_id === group.salesperson_id
+                );
+                
+                if (groupRows.length > 0) {
+                    // Find the first occurrence of this group
+                    const firstIndex = newData.findIndex(
+                        i => i.group_key === group.group_key && i.salesperson_id === group.salesperson_id
+                    );
+                    
+                    // Remove all rows for this group
+                    const filteredData = newData.filter(
+                        i => !(i.group_key === group.group_key && i.salesperson_id === group.salesperson_id)
+                    );
+                    
+                    // Insert new data at the original position
+                    filteredData.splice(firstIndex, 0, ...updatedRows);
+                    divisionData.value = filteredData;
+                } else {
+                    // Fallback: just append if group not found
+                    divisionData.value = [...divisionData.value.filter(
+                        i => !(i.group_key === group.group_key && i.salesperson_id === group.salesperson_id)
+                    ), ...updatedRows];
+                }
 
                 return result;
             } else {
@@ -162,8 +198,35 @@ export function useDivisionData() {
             if (response.ok) {
                 const result = await response.json();
 
-                // Refresh data to get updated ratios
-                await fetchDivisionData();
+                // Fetch only updated group
+                const updatedRows = await fetchSingleGroup(salespersonId, customerClass, groupKey);
+
+                // Replace that group locally while maintaining position
+                const newData = [...divisionData.value];
+                const groupRows = newData.filter(
+                    i => i.group_key === groupKey && i.salesperson_id === salespersonId
+                );
+                
+                if (groupRows.length > 0) {
+                    // Find the first occurrence of this group
+                    const firstIndex = newData.findIndex(
+                        i => i.group_key === groupKey && i.salesperson_id === salespersonId
+                    );
+                    
+                    // Remove all rows for this group
+                    const filteredData = newData.filter(
+                        i => !(i.group_key === groupKey && i.salesperson_id === salespersonId)
+                    );
+                    
+                    // Insert new data at the original position
+                    filteredData.splice(firstIndex, 0, ...updatedRows);
+                    divisionData.value = filteredData;
+                } else {
+                    // Fallback: just append if group not found
+                    divisionData.value = [...divisionData.value.filter(
+                        i => !(i.group_key === groupKey && i.salesperson_id === salespersonId)
+                    ), ...updatedRows];
+                }
 
                 return result;
             } else {

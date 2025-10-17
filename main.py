@@ -10,6 +10,7 @@ from controllers.sales_controller import router as sales_router
 from controllers.budget_controller import router as budget_router
 from controllers.admin_controller import router as admin_router
 from controllers.division_controller import router as division_router
+from controllers.gross_profit_controller import router as gross_profit_router
 from middlewares.auth_middleware import AuthMiddleware
 from constants import ALLOWED_ORIGINS
 
@@ -40,4 +41,5 @@ app.include_router(sales_router)
 app.include_router(budget_router)
 app.include_router(admin_router)
 app.include_router(division_router)
+app.include_router(gross_profit_router)
 app.add_middleware(AuthMiddleware)

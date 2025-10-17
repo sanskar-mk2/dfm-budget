@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import DivisionSlider from "./DivisionSlider.vue";
 
 const props = defineProps({
@@ -15,8 +15,7 @@ const props = defineProps({
 
 const emit = defineEmits(["ratio-change", "lock-toggle"]);
 
-// State for showing/hiding actuals columns
-const showActuals = ref(false);
+// Removed showActuals state - actuals column is now always visible
 
 const formatCurrency = (value) => {
     return new Intl.NumberFormat("en-US", {
@@ -34,19 +33,44 @@ const handleRatioChange = (divisionIndex, newRatio) => {
 const handleLockToggle = (divisionIndex) => {
     emit("lock-toggle", divisionIndex);
 };
+
+// Calculate totals for the table
+const totals = computed(() => {
+    if (!props.divisions || props.divisions.length === 0) {
+        return {
+            totalRatio: 0,
+            totalActualSales: 0,
+            totalQ1: 0,
+            totalQ2: 0,
+            totalQ3: 0,
+            totalQ4: 0,
+            totalAllocated: 0
+        };
+    }
+
+    return props.divisions.reduce((acc, division) => {
+        acc.totalRatio += division.effective_ratio || 0;
+        acc.totalActualSales += division.total_2025_sales || 0;
+        acc.totalQ1 += division.q1_allocated || 0;
+        acc.totalQ2 += division.q2_allocated || 0;
+        acc.totalQ3 += division.q3_allocated || 0;
+        acc.totalQ4 += division.q4_allocated || 0;
+        acc.totalAllocated += division.total_allocated || 0;
+        return acc;
+    }, {
+        totalRatio: 0,
+        totalActualSales: 0,
+        totalQ1: 0,
+        totalQ2: 0,
+        totalQ3: 0,
+        totalQ4: 0,
+        totalAllocated: 0
+    });
+});
 </script>
 
 <template>
     <div class="overflow-x-auto">
-        <!-- Toggle button for showing/hiding actuals -->
-        <div class="mb-4 flex justify-end">
-            <button 
-                @click="showActuals = !showActuals"
-                class="btn btn-xs btn-outline"
-            >
-                {{ showActuals ? 'Hide Actuals' : 'Show Actuals' }}
-            </button>
-        </div>
         
         <table class="table table-zebra w-full">
             <thead>
@@ -54,8 +78,7 @@ const handleLockToggle = (divisionIndex) => {
                     <th class="w-8">#</th>
                     <th>Division</th>
                     <th class="w-80">Effective Ratio</th>
-                    <th v-if="showActuals" class="text-right">2025 Ratio</th>
-                    <th v-if="showActuals" class="text-right">Actual Sales</th>
+                    <th class="text-right">2025 Sales</th>
                     <th class="text-right">Q1</th>
                     <th class="text-right">Q2</th>
                     <th class="text-right">Q3</th>
@@ -96,10 +119,7 @@ const handleLockToggle = (divisionIndex) => {
                             @lock-toggle="() => handleLockToggle(index)"
                         />
                     </td>
-                    <td v-if="showActuals" class="text-right font-mono text-sm">
-                        {{ (division.division_ratio_2025 * 100).toFixed(2) }}%
-                    </td>
-                    <td v-if="showActuals" class="text-right font-mono text-sm">
+                    <td class="text-right font-mono text-sm">
                         {{ formatCurrency(division.total_2025_sales) }}
                     </td>
                     <td class="text-right font-mono text-sm">
@@ -119,6 +139,34 @@ const handleLockToggle = (divisionIndex) => {
                     </td>
                 </tr>
             </tbody>
+            <tfoot>
+                <tr class="bg-base-200 font-bold">
+                    <td colspan="2" class="text-right">
+                        <span class="text-lg">Total</span>
+                    </td>
+                    <td class="text-right">
+                        <span class="text-lg">{{ (totals.totalRatio * 100).toFixed(2) }}%</span>
+                    </td>
+                    <td class="text-right">
+                        <span class="text-lg">{{ formatCurrency(totals.totalActualSales) }}</span>
+                    </td>
+                    <td class="text-right">
+                        <span class="text-lg">{{ formatCurrency(totals.totalQ1) }}</span>
+                    </td>
+                    <td class="text-right">
+                        <span class="text-lg">{{ formatCurrency(totals.totalQ2) }}</span>
+                    </td>
+                    <td class="text-right">
+                        <span class="text-lg">{{ formatCurrency(totals.totalQ3) }}</span>
+                    </td>
+                    <td class="text-right">
+                        <span class="text-lg">{{ formatCurrency(totals.totalQ4) }}</span>
+                    </td>
+                    <td class="text-right">
+                        <span class="text-lg">{{ formatCurrency(totals.totalAllocated) }}</span>
+                    </td>
+                </tr>
+            </tfoot>
         </table>
     </div>
 </template>

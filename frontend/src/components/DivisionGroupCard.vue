@@ -141,16 +141,16 @@ const handleReset = async () => {
                         {{ group.customer_class }} ›
                         {{ group.salesperson_name }} › {{ group.display_key }}
                     </h3>
-                    <div class="text-sm opacity-70">
+                    <!-- <div class="text-sm opacity-70">
                         {{ group.divisions.length }} divisions
-                    </div>
+                    </div> -->
                 </div>
-                <div class="flex items-center gap-2">
+                <!-- <div class="flex items-center gap-2">
                     <span :class="['text-sm font-mono', ratioStatus.class]">
                         Total: {{ (totalRatio * 100).toFixed(1) }}%
                         {{ ratioStatus.icon }}
                     </span>
-                </div>
+                </div> -->
             </div>
 
             <!-- Division Table -->
@@ -173,7 +173,7 @@ const handleReset = async () => {
                 <button
                     @click="handleSave"
                     class="btn btn-primary btn-sm"
-                    :disabled="!hasChanges"
+                    :disabled="!hasChanges || ratioStatus.status !== 'perfect'"
                 >
                     Save Changes
                 </button>

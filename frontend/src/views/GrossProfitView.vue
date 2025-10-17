@@ -1,81 +1,84 @@
 <script setup>
-import { onMounted, onUnmounted, inject } from "vue";
+import { onMounted } from "vue";
 import { useGrossProfitData } from "@/composables/useGrossProfitData";
 
-const navActions = inject("navActions");
-const { gpData, loading, fetchGrossProfitData } = useGrossProfitData();
+const { grouped, fetch, save, reset, loading } = useGrossProfitData();
 
-onMounted(() => {
-    // Set navigation actions for this view
-    navActions.set([
-        {
-            id: "back-to-admin",
-            text: "Back to Admin",
-            class: "btn btn-ghost",
-            handler: () => {
-                // Navigate back to admin view
-                window.history.back();
-            },
-            icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>',
-        },
-    ]);
-    fetchGrossProfitData();
-});
-
-onUnmounted(() => navActions.clear());
+onMounted(fetch);
 
 function formatPct(v) {
-  return v === null ? "-" : `${(v * 100).toFixed(1)}%`;
+    return v == null ? "-" : (v * 100).toFixed(1) + "%";
 }
-
 function formatMoney(v) {
-  return `$${v.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
+    return v ? "$" + v.toLocaleString() : "-";
 }
 </script>
 
 <template>
-    <div class="p-6">
-        <h1 class="text-3xl font-bold mb-4">Gross Profit Overview (2026)</h1>
+    <div class="p-6 space-y-6">
+        <h1 class="text-3xl font-bold mb-4">Gross Profit Overview</h1>
 
         <div v-if="loading" class="text-center py-10">Loading...</div>
 
-        <div v-else class="overflow-x-auto">
-            <table class="table table-zebra w-full text-sm">
-                <thead>
-                    <tr>
-                        <th>Salesperson</th>
-                        <th>Customer Class</th>
-                        <th>Group</th>
-                        <th>Q1 GP%</th>
-                        <th>Q2 GP%</th>
-                        <th>Q3 GP%</th>
-                        <th>Q4 GP%</th>
-                        <th>FY GP%</th>
-                        <th>Q1 GP$</th>
-                        <th>Q2 GP$</th>
-                        <th>Q3 GP$</th>
-                        <th>Q4 GP$</th>
-                        <th>Total GP$</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="row in gpData" :key="row.salesperson_id + row.group_key">
-                        <td>{{ row.salesperson_name }}</td>
-                        <td>{{ row.customer_class }}</td>
-                        <td>{{ row.group_key }}</td>
-                        <td>{{ formatPct(row.q1_gp_percent) }}</td>
-                        <td>{{ formatPct(row.q2_gp_percent) }}</td>
-                        <td>{{ formatPct(row.q3_gp_percent) }}</td>
-                        <td>{{ formatPct(row.q4_gp_percent) }}</td>
-                        <td>{{ formatPct(row.full_year_gp_percent) }}</td>
-                        <td>{{ formatMoney(row.q1_gp_value) }}</td>
-                        <td>{{ formatMoney(row.q2_gp_value) }}</td>
-                        <td>{{ formatMoney(row.q3_gp_value) }}</td>
-                        <td>{{ formatMoney(row.q4_gp_value) }}</td>
-                        <td class="font-semibold">{{ formatMoney(row.total_gp_value) }}</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div v-else>
+            <div
+                v-for="group in grouped"
+                :key="group.display_key"
+                class="card bg-base-100 shadow p-4 mb-4"
+            >
+                <h2 class="font-semibold text-lg mb-2">
+                    {{ group.customer_class }} › {{ group.salesperson_name }} ›
+                    {{ group.display_key }}
+                </h2>
+
+                <table class="table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th>Quarter</th>
+                            <th>Sales</th>
+                            <th>Historical GP%</th>
+                            <th>GP $ (Est.)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="q in group.quarters" :key="q.label">
+                            <td>{{ q.label }}</td>
+                            <td>{{ formatMoney(q.sales) }}</td>
+                            <td>{{ formatPct(q.gp_percent) }}</td>
+                            <td>{{ formatMoney(q.gp_value) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-3 flex justify-between items-center">
+                    <div>
+                        Effective GP%:
+                        <input
+                            type="number"
+                            step="0.001"
+                            v-model.number="group.effective_gp_percent"
+                            class="input input-sm input-bordered w-28 ml-2"
+                        />
+                        <span class="ml-1 text-gray-500"
+                            >(applies to all quarters)</span
+                        >
+                    </div>
+                    <div class="space-x-2">
+                        <button
+                            class="btn btn-sm btn-outline"
+                            @click="save(group)"
+                        >
+                            Save
+                        </button>
+                        <button
+                            class="btn btn-sm btn-outline"
+                            @click="reset(group)"
+                        >
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>

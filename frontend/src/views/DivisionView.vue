@@ -270,8 +270,8 @@ onUnmounted(() => navActions.clear());
                                 </td>
                             </tr>
                             <tr v-if="expandedGroups[row.key]">
-                                <td></td>
-                                <td colspan="8">
+                                <!-- <td></td> -->
+                                <td colspan="100%">
                                     <DivisionGroupCard
                                         :group="row.group"
                                         @save-ratios="handleSaveRatios"

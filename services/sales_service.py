@@ -66,6 +66,7 @@ class SalesService:
 
         basic_result = self.db.exec(basic_query)
         basic_data = [dict(row._mapping) for row in basic_result]
+        basic_map = {f"{row['flag']}_{row['brand']}": row for row in basic_data}
 
         # Step 2: Get quarterly breakdowns for Q1-Q4 2025
         quarterly_query = text(
@@ -128,24 +129,39 @@ class SalesService:
             f"{row.flag}_{row.brand}": dict(row._mapping) for row in open_2026_result
         }
 
-        # Step 5: Combine the data
+        # Step 5: Combine the data using union of keys across sources
         final_data = []
-        for item in basic_data:
-            key = f"{item['flag']}_{item['brand']}"
+        union_keys = (
+            set(basic_map.keys()) | set(q4_data.keys()) | set(open_2026_data.keys())
+        )
+
+        for key in union_keys:
             quarterly = quarterly_data.get(key, {})
             q4 = q4_data.get(key, {})
             open_2026 = open_2026_data.get(key, {})
+            base = basic_map.get(key)
 
-            total_sales = item[
-                "total_sales"
-            ]  # This now includes Q1-Q4 from sales table
-            zero_perc_total_q1_q4 = item[
-                "zero_perc_sales_total"
-            ]  # This now includes Q1-Q4 from sales table
-            q4_orders = q4.get("q4_sales", 0)  # Q4 orders from open_orders
+            flag = (
+                (base or {}).get("flag")
+                or q4.get("flag")
+                or open_2026.get("flag")
+                or quarterly.get("flag")
+            )
+            brand = (
+                (base or {}).get("brand")
+                or q4.get("brand")
+                or open_2026.get("brand")
+                or quarterly.get("brand")
+            )
+
+            total_sales = (base or {}).get("total_sales", 0)
+            zero_perc_total_q1_q4 = (base or {}).get("zero_perc_sales_total", 0)
+            q4_orders = q4.get("q4_sales", 0)
             q4_orders_zero_perc = q4.get("q4_zero_perc_sales", 0)
-            total_sales_with_orders = total_sales + q4_orders
-            total_zero_perc_sales = zero_perc_total_q1_q4 + q4_orders_zero_perc
+            total_sales_with_orders = (total_sales or 0) + (q4_orders or 0)
+            total_zero_perc_sales = (zero_perc_total_q1_q4 or 0) + (
+                q4_orders_zero_perc or 0
+            )
             zero_perc_percent = (
                 (total_zero_perc_sales / total_sales_with_orders * 100)
                 if total_sales_with_orders > 0
@@ -154,17 +170,15 @@ class SalesService:
 
             final_data.append(
                 {
-                    "flag": item["flag"],
-                    "brand": item["brand"],
-                    "customer_name": None,  # Set to null for hospitality
-                    "derived_customer_class": None,  # Set to null for hospitality
+                    "flag": flag,
+                    "brand": brand,
+                    "customer_name": None,
+                    "derived_customer_class": None,
                     "q1_sales": quarterly.get("q1_sales", 0),
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
-                    "q4_sales": quarterly.get(
-                        "q4_sales", 0
-                    ),  # Q4 sales from sales table
-                    "q4_orders": q4_orders,  # Q4 orders from open_orders
+                    "q4_sales": quarterly.get("q4_sales", 0),
+                    "q4_orders": q4_orders,
                     "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
                     "total_sales": total_sales_with_orders,
@@ -302,24 +316,43 @@ class SalesService:
             for row in open_2026_result
         }
 
-        # Step 5: Combine the data
+        # Step 5: Combine the data using union of keys across sources
         final_data = []
-        for item in basic_data:
-            key = f"{item['customer_name']}_{item['derived_customer_class']}"
+        basic_map = {
+            f"{row['customer_name']}_{row['derived_customer_class']}": row
+            for row in basic_data
+        }
+        union_keys = (
+            set(basic_map.keys()) | set(q4_data.keys()) | set(open_2026_data.keys())
+        )
+
+        for key in union_keys:
             quarterly = quarterly_data.get(key, {})
             q4 = q4_data.get(key, {})
             open_2026 = open_2026_data.get(key, {})
+            base = basic_map.get(key)
 
-            total_sales = item[
-                "total_sales"
-            ]  # This now includes Q1-Q4 from sales table
-            zero_perc_total_q1_q4 = item[
-                "zero_perc_sales_total"
-            ]  # This now includes Q1-Q4 from sales table
-            q4_orders = q4.get("q4_sales", 0)  # Q4 orders from open_orders
+            customer_name = (
+                (base or {}).get("customer_name")
+                or q4.get("customer_name")
+                or open_2026.get("customer_name")
+                or quarterly.get("customer_name")
+            )
+            derived_customer_class = (
+                (base or {}).get("derived_customer_class")
+                or q4.get("derived_customer_class")
+                or open_2026.get("derived_customer_class")
+                or quarterly.get("derived_customer_class")
+            )
+
+            total_sales = (base or {}).get("total_sales", 0)
+            zero_perc_total_q1_q4 = (base or {}).get("zero_perc_sales_total", 0)
+            q4_orders = q4.get("q4_sales", 0)
             q4_orders_zero_perc = q4.get("q4_zero_perc_sales", 0)
-            total_sales_with_orders = total_sales + q4_orders
-            total_zero_perc_sales = zero_perc_total_q1_q4 + q4_orders_zero_perc
+            total_sales_with_orders = (total_sales or 0) + (q4_orders or 0)
+            total_zero_perc_sales = (zero_perc_total_q1_q4 or 0) + (
+                q4_orders_zero_perc or 0
+            )
             zero_perc_percent = (
                 (total_zero_perc_sales / total_sales_with_orders * 100)
                 if total_sales_with_orders > 0
@@ -328,15 +361,13 @@ class SalesService:
 
             final_data.append(
                 {
-                    "customer_name": item["customer_name"],
-                    "derived_customer_class": item["derived_customer_class"],
+                    "customer_name": customer_name,
+                    "derived_customer_class": derived_customer_class,
                     "q1_sales": quarterly.get("q1_sales", 0),
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
-                    "q4_sales": quarterly.get(
-                        "q4_sales", 0
-                    ),  # Q4 sales from sales table
-                    "q4_orders": q4_orders,  # Q4 orders from open_orders
+                    "q4_sales": quarterly.get("q4_sales", 0),
+                    "q4_orders": q4_orders,
                     "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
                     "total_sales": total_sales_with_orders,

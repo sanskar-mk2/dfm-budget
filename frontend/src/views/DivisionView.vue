@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, inject } from "vue";
+import { onMounted, onUnmounted, inject, computed, reactive } from "vue";
 import { useDivisionData } from "@/composables/useDivisionData";
 import DivisionGroupCard from "@/components/DivisionGroupCard.vue";
 import LoadingError from "@/components/LoadingError.vue";
@@ -31,6 +31,66 @@ const handleResetAll = async () => {
         console.error("Error resetting overrides:", error);
     }
 };
+
+const expandedGroups = reactive({});
+
+const makeGroupKey = (group) =>
+    `${group.salesperson_id}-${group.customer_class}-${group.group_key}`;
+
+const computeSummary = (group) => {
+    return group.divisions.reduce(
+        (acc, division) => {
+            acc.totalRatio += division.effective_ratio || 0;
+            acc.totalSales += division.total_2025_sales || 0;
+            acc.q1 += division.q1_allocated || 0;
+            acc.q2 += division.q2_allocated || 0;
+            acc.q3 += division.q3_allocated || 0;
+            acc.q4 += division.q4_allocated || 0;
+            acc.grandTotal += division.total_allocated || 0;
+            return acc;
+        },
+        {
+            totalRatio: 0,
+            totalSales: 0,
+            q1: 0,
+            q2: 0,
+            q3: 0,
+            q4: 0,
+            grandTotal: 0,
+        }
+    );
+};
+
+const groupRows = computed(() => {
+    if (!groupedData.value || groupedData.value.length === 0) {
+        return [];
+    }
+
+    return groupedData.value.map((group) => {
+        const key = makeGroupKey(group);
+        return {
+            key,
+            group,
+            summary: computeSummary(group),
+            label: `${group.customer_class} > ${group.salesperson_name} > ${group.display_key}`,
+        };
+    });
+});
+
+const toggleGroup = (key) => {
+    expandedGroups[key] = !expandedGroups[key];
+};
+
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value || 0);
+};
+
+const formatPercent = (value) => `${((value || 0) * 100).toFixed(1)}%`;
 
 onMounted(() => {
     // Set navigation actions for this view
@@ -83,7 +143,7 @@ onUnmounted(() => navActions.clear());
         />
 
         <!-- Division Groups -->
-        <div v-if="!loading && !error && groupedData.length > 0" class="space-y-6">
+        <div v-if="!loading && !error && groupRows.length > 0" class="space-y-6">
             <div class="stats shadow mb-6">
                 <div class="stat">
                     <div class="stat-title">Total Groups</div>
@@ -103,14 +163,77 @@ onUnmounted(() => navActions.clear());
                 </div>
             </div>
 
-            <!-- Group Cards -->
-            <DivisionGroupCard
-                v-for="group in groupedData"
-                :key="`${group.salesperson_id}-${group.customer_class}-${group.group_key}`"
-                :group="group"
-                @save-ratios="handleSaveRatios"
-                @reset-group="handleResetGroup"
-            />
+            <div class="overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th class="w-20">Action</th>
+                            <th>Group</th>
+                            <th class="text-right">Total Ratio</th>
+                            <th class="text-right">Total Sales</th>
+                            <th class="text-right">Q1 Budget</th>
+                            <th class="text-right">Q2 Budget</th>
+                            <th class="text-right">Q3 Budget</th>
+                            <th class="text-right">Q4 Budget</th>
+                            <th class="text-right">Grand Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="row in groupRows" :key="row.key">
+                            <tr>
+                                <td>
+                                    <button
+                                        class="btn btn-outline btn-xs"
+                                        type="button"
+                                        @click="toggleGroup(row.key)"
+                                    >
+                                        {{ expandedGroups[row.key] ? "Collapse" : "Expand" }}
+                                    </button>
+                                </td>
+                                <td>
+                                    <div class="font-semibold">{{ row.group.display_key }}</div>
+                                    <div class="text-xs opacity-70">
+                                        {{ row.group.customer_class }} •
+                                        {{ row.group.salesperson_name }}
+                                    </div>
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatPercent(row.summary.totalRatio) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.totalSales) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q1) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q2) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q3) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q4) }}
+                                </td>
+                                <td class="text-right font-mono font-semibold">
+                                    {{ formatCurrency(row.summary.grandTotal) }}
+                                </td>
+                            </tr>
+                            <tr v-if="expandedGroups[row.key]">
+                                <td></td>
+                                <td colspan="8">
+                                    <DivisionGroupCard
+                                        :group="row.group"
+                                        @save-ratios="handleSaveRatios"
+                                        @reset-group="handleResetGroup"
+                                        @collapse="toggleGroup(row.key)"
+                                    />
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- No Data State -->

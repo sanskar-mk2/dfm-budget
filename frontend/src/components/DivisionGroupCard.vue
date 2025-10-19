@@ -9,7 +9,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["save-ratios", "reset-group"]);
+const emit = defineEmits(["save-ratios", "reset-group", "collapse"]);
 
 // Local copy of divisions for editing
 const localDivisions = ref([]);
@@ -33,6 +33,10 @@ const totalRatio = computed(() => {
         (sum, div) => sum + div.effective_ratio,
         0
     );
+});
+
+const groupLabel = computed(() => {
+    return `${props.group.customer_class} > ${props.group.salesperson_name} > ${props.group.display_key}`;
 });
 
 const ratioStatus = computed(() => {
@@ -129,6 +133,10 @@ const handleReset = async () => {
         // You might want to show a toast notification here
     }
 };
+
+const handleCollapse = () => {
+    emit("collapse");
+};
 </script>
 
 <template>
@@ -136,21 +144,27 @@ const handleReset = async () => {
         <div class="card-body">
             <!-- Group Header -->
             <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="card-title text-lg">
-                        {{ group.customer_class }} ›
-                        {{ group.salesperson_name }} › {{ group.display_key }}
-                    </h3>
-                    <!-- <div class="text-sm opacity-70">
-                        {{ group.divisions.length }} divisions
-                    </div> -->
+                <h3 class="card-title text-lg">
+                    {{ groupLabel }}
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button
+                        @click="handleReset"
+                        class="btn btn-ghost btn-sm"
+                        :disabled="!hasChanges"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        @click="handleSave"
+                        class="btn btn-primary btn-sm"
+                        :disabled="
+                            !hasChanges || ratioStatus.status !== 'perfect'
+                        "
+                    >
+                        Save Changes
+                    </button>
                 </div>
-                <!-- <div class="flex items-center gap-2">
-                    <span :class="['text-sm font-mono', ratioStatus.class]">
-                        Total: {{ (totalRatio * 100).toFixed(1) }}%
-                        {{ ratioStatus.icon }}
-                    </span>
-                </div> -->
             </div>
 
             <!-- Division Table -->
@@ -160,24 +174,6 @@ const handleReset = async () => {
                 @ratio-change="handleRatioChange"
                 @lock-toggle="handleLockToggle"
             />
-
-            <!-- Action Buttons -->
-            <div class="card-actions justify-end mt-4">
-                <button
-                    @click="handleReset"
-                    class="btn btn-ghost btn-sm"
-                    :disabled="!hasChanges"
-                >
-                    Reset
-                </button>
-                <button
-                    @click="handleSave"
-                    class="btn btn-primary btn-sm"
-                    :disabled="!hasChanges || ratioStatus.status !== 'perfect'"
-                >
-                    Save Changes
-                </button>
-            </div>
 
             <!-- Status Messages -->
             <div

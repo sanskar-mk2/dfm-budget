@@ -136,8 +136,12 @@ class SalesService:
             q4 = q4_data.get(key, {})
             open_2026 = open_2026_data.get(key, {})
 
-            total_sales = item["total_sales"]  # This now includes Q1-Q4 from sales table
-            zero_perc_total_q1_q4 = item["zero_perc_sales_total"]  # This now includes Q1-Q4 from sales table
+            total_sales = item[
+                "total_sales"
+            ]  # This now includes Q1-Q4 from sales table
+            zero_perc_total_q1_q4 = item[
+                "zero_perc_sales_total"
+            ]  # This now includes Q1-Q4 from sales table
             q4_orders = q4.get("q4_sales", 0)  # Q4 orders from open_orders
             q4_orders_zero_perc = q4.get("q4_zero_perc_sales", 0)
             total_sales_with_orders = total_sales + q4_orders
@@ -157,7 +161,9 @@ class SalesService:
                     "q1_sales": quarterly.get("q1_sales", 0),
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
-                    "q4_sales": quarterly.get("q4_sales", 0),  # Q4 sales from sales table
+                    "q4_sales": quarterly.get(
+                        "q4_sales", 0
+                    ),  # Q4 sales from sales table
                     "q4_orders": q4_orders,  # Q4 orders from open_orders
                     "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
@@ -166,8 +172,18 @@ class SalesService:
                 }
             )
 
-        # Filter out rows with zero total sales
-        final_data = [item for item in final_data if (item["total_sales"] or 0) > 0]
+        # Filter out rows only when all quarterly sales and Q4 open are zero
+        final_data = [
+            item
+            for item in final_data
+            if not (
+                ((item.get("q1_sales") or 0) == 0)
+                and ((item.get("q2_sales") or 0) == 0)
+                and ((item.get("q3_sales") or 0) == 0)
+                and ((item.get("q4_sales") or 0) == 0)
+                and ((item.get("q4_orders") or 0) == 0)
+            )
+        ]
 
         # Sort by brand total sales DESC, flag total sales DESC
         # First, calculate brand totals for sorting
@@ -294,8 +310,12 @@ class SalesService:
             q4 = q4_data.get(key, {})
             open_2026 = open_2026_data.get(key, {})
 
-            total_sales = item["total_sales"]  # This now includes Q1-Q4 from sales table
-            zero_perc_total_q1_q4 = item["zero_perc_sales_total"]  # This now includes Q1-Q4 from sales table
+            total_sales = item[
+                "total_sales"
+            ]  # This now includes Q1-Q4 from sales table
+            zero_perc_total_q1_q4 = item[
+                "zero_perc_sales_total"
+            ]  # This now includes Q1-Q4 from sales table
             q4_orders = q4.get("q4_sales", 0)  # Q4 orders from open_orders
             q4_orders_zero_perc = q4.get("q4_zero_perc_sales", 0)
             total_sales_with_orders = total_sales + q4_orders
@@ -313,7 +333,9 @@ class SalesService:
                     "q1_sales": quarterly.get("q1_sales", 0),
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),
-                    "q4_sales": quarterly.get("q4_sales", 0),  # Q4 sales from sales table
+                    "q4_sales": quarterly.get(
+                        "q4_sales", 0
+                    ),  # Q4 sales from sales table
                     "q4_orders": q4_orders,  # Q4 orders from open_orders
                     "open_2026": open_2026.get("open_2026", 0),
                     "zero_perc_sales_total": total_zero_perc_sales,
@@ -324,8 +346,18 @@ class SalesService:
                 }
             )
 
-        # Filter out rows with zero total sales
-        final_data = [item for item in final_data if (item["total_sales"] or 0) > 0]
+        # Filter out rows only when all quarterly sales and Q4 open are zero
+        final_data = [
+            item
+            for item in final_data
+            if not (
+                ((item.get("q1_sales") or 0) == 0)
+                and ((item.get("q2_sales") or 0) == 0)
+                and ((item.get("q3_sales") or 0) == 0)
+                and ((item.get("q4_sales") or 0) == 0)
+                and ((item.get("q4_orders") or 0) == 0)
+            )
+        ]
 
         # Sort by customer class total sales DESC, customer name total sales DESC
         # First, calculate customer class totals for sorting

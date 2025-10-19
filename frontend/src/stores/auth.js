@@ -10,6 +10,9 @@ export const useAuthStore = defineStore("auth", () => {
         JSON.parse(localStorage.getItem("salesperson") || "null")
     );
     const isAdmin = ref(JSON.parse(localStorage.getItem("isAdmin") || "false"));
+    const isSuperadmin = ref(
+        JSON.parse(localStorage.getItem("isSuperadmin") || "false")
+    );
     const loading = ref(false);
     const error = ref(null);
 
@@ -18,7 +21,7 @@ export const useAuthStore = defineStore("auth", () => {
     const currentUser = computed(() => user.value);
     const currentSalesperson = computed(() => salesperson.value);
     const adminStatus = computed(() => isAdmin.value);
-
+    const superadminStatus = computed(() => isSuperadmin.value);
     // Actions
     const login = async (username, password) => {
         loading.value = true;
@@ -46,13 +49,17 @@ export const useAuthStore = defineStore("auth", () => {
             user.value = { username };
             salesperson.value = data.salesperson || null;
             isAdmin.value = data.is_admin || false;
-
+            isSuperadmin.value = data.is_superadmin || false;
             // Persist to localStorage
             localStorage.setItem("token", data.access_token);
             localStorage.setItem("user", JSON.stringify({ username }));
             localStorage.setItem(
                 "isAdmin",
                 JSON.stringify(data.is_admin || false)
+            );
+            localStorage.setItem(
+                "isSuperadmin",
+                JSON.stringify(data.is_superadmin || false)
             );
             if (data.salesperson) {
                 localStorage.setItem(
@@ -75,6 +82,7 @@ export const useAuthStore = defineStore("auth", () => {
         user.value = null;
         salesperson.value = null;
         isAdmin.value = false;
+        isSuperadmin.value = false;
         error.value = null;
 
         // Clear localStorage
@@ -82,7 +90,7 @@ export const useAuthStore = defineStore("auth", () => {
         localStorage.removeItem("user");
         localStorage.removeItem("salesperson");
         localStorage.removeItem("isAdmin");
-
+        localStorage.removeItem("isSuperadmin");
         // Navigate to login page
         router.push("/login");
     };
@@ -122,6 +130,7 @@ export const useAuthStore = defineStore("auth", () => {
         user,
         salesperson,
         isAdmin,
+        isSuperadmin,
         loading,
         error,
 
@@ -130,7 +139,7 @@ export const useAuthStore = defineStore("auth", () => {
         currentUser,
         currentSalesperson,
         adminStatus,
-
+        superadminStatus,
         // Actions
         login,
         logout,

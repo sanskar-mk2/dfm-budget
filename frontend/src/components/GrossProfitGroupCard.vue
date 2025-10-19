@@ -8,6 +8,8 @@ const props = defineProps({
     onReset: Function,
 });
 
+const emit = defineEmits(["collapse"]);
+
 const saving = ref(false);
 
 // Create a local reactive copy of the group data
@@ -16,7 +18,6 @@ const localGroup = reactive({
 });
 
 // Track original effective_gp_percent to detect changes
-const originalGpPercent = ref(props.group.effective_gp_percent);
 const lastSavedValue = ref(props.group.effective_gp_percent);
 
 // Watch for group changes to update localGroup and lastSavedValue when we get fresh data from server
@@ -76,8 +77,17 @@ function fmtPct(v) {
     return v == null ? "-" : (v * 100).toFixed(1) + "%";
 }
 function fmtMoney(v) {
-    return v ? "$" + v.toLocaleString() : "-";
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(v || 0);
 }
+
+const handleCollapse = () => {
+    emit("collapse");
+};
 </script>
 
 <template>
@@ -87,12 +97,30 @@ function fmtMoney(v) {
         <div class="card-body">
             <!-- Group Header -->
             <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="card-title text-lg">
-                        {{ localGroup.customer_class }} ›
-                        {{ localGroup.salesperson_name }} ›
-                        {{ localGroup.display_key }}
-                    </h3>
+                <h3 class="card-title text-lg">
+                    {{ localGroup.customer_class }} ›
+                    {{ localGroup.salesperson_name }} ›
+                    {{ localGroup.display_key }}
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button
+                        class="btn btn-sm btn-ghost"
+                        :disabled="saving || !canReset"
+                        @click="handleReset"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        class="btn btn-sm btn-primary"
+                        :disabled="saving || !hasChanges"
+                        @click="handleSave"
+                    >
+                        <span
+                            v-if="saving"
+                            class="loading loading-spinner loading-xs"
+                        ></span>
+                        Save Changes
+                    </button>
                 </div>
             </div>
 
@@ -140,26 +168,6 @@ function fmtMoney(v) {
                             >
                         </div>
                     </div>
-                </div>
-                <div class="space-x-2">
-                    <button
-                        class="btn btn-sm btn-ghost"
-                        :disabled="saving || !canReset"
-                        @click="handleReset"
-                    >
-                        Reset
-                    </button>
-                    <button
-                        class="btn btn-sm btn-primary"
-                        :disabled="saving || !hasChanges"
-                        @click="handleSave"
-                    >
-                        <span
-                            v-if="saving"
-                            class="loading loading-spinner loading-xs"
-                        ></span>
-                        Save Changes
-                    </button>
                 </div>
             </div>
         </div>

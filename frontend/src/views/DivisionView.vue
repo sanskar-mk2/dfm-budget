@@ -1,11 +1,23 @@
 <script setup>
-import { onMounted, onUnmounted, inject, computed, reactive } from "vue";
+import { onMounted, onUnmounted, inject, computed, reactive, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useDivisionData } from "@/composables/useDivisionData";
 import DivisionGroupCard from "@/components/DivisionGroupCard.vue";
 import LoadingError from "@/components/LoadingError.vue";
+import { useAuthStore } from "@/stores/auth";
 
 const navActions = inject("navActions");
-const { loading, error, groupedData, fetchDivisionData, saveRatios, resetGroupOverrides, resetAllOverrides } = useDivisionData();
+const {
+    loading,
+    error,
+    groupedData,
+    fetchDivisionData,
+    saveRatios,
+    resetGroupOverrides,
+    resetAllOverrides,
+} = useDivisionData();
+const authStore = useAuthStore();
+const { adminStatus, superadminStatus } = storeToRefs(authStore);
 
 const handleSaveRatios = async (groupKey, divisions) => {
     try {
@@ -31,6 +43,40 @@ const handleResetAll = async () => {
         console.error("Error resetting overrides:", error);
     }
 };
+
+const resetAllAction = {
+    id: "reset-all-overrides",
+    text: "Reset All Overrides",
+    class: "btn btn-warning mr-2",
+    handler: handleResetAll,
+    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>',
+};
+
+const backAction = {
+    id: "back-to-admin",
+    text: "Back to Admin",
+    class: "btn btn-ghost",
+    handler: () => {
+        // Navigate back to admin view
+        window.history.back();
+    },
+    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>',
+};
+
+const updateNavActions = () => {
+    const actions = [];
+    if (superadminStatus.value) {
+        actions.push(resetAllAction);
+    }
+    if (adminStatus.value || superadminStatus.value) {
+        actions.push(backAction);
+    }
+    navActions.set(actions);
+};
+
+watch([adminStatus, superadminStatus], () => updateNavActions(), {
+    immediate: true,
+});
 
 const expandedGroups = reactive({});
 
@@ -93,27 +139,7 @@ const formatCurrency = (value) => {
 const formatPercent = (value) => `${((value || 0) * 100).toFixed(1)}%`;
 
 onMounted(() => {
-    // Set navigation actions for this view
-    navActions.set([
-        {
-            id: "reset-all-overrides",
-            text: "Reset All Overrides",
-            class: "btn btn-warning mr-2",
-            handler: handleResetAll,
-            icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>',
-        },
-        {
-            id: "back-to-admin",
-            text: "Back to Admin",
-            class: "btn btn-ghost",
-            handler: () => {
-                // Navigate back to admin view
-                window.history.back();
-            },
-            icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>',
-        },
-    ]);
-    
+    updateNavActions();
     // Fetch division data when component mounts
     fetchDivisionData();
 });
@@ -124,7 +150,7 @@ onUnmounted(() => navActions.clear());
 <template>
     <div class="p-6 space-y-6">
         <!-- Header -->
-        <div class="hero bg-base-200 rounded-lg">
+        <!-- <div class="hero bg-base-200 rounded-lg">
             <div class="hero-content text-center">
                 <div class="max-w-4xl">
                     <h1 class="text-5xl font-bold">Division Ratio Management</h1>
@@ -133,32 +159,50 @@ onUnmounted(() => navActions.clear());
                     </p>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         <!-- Loading and Error States -->
-        <LoadingError 
-            :loading="loading" 
-            :error="error" 
-            @retry="fetchDivisionData" 
+        <LoadingError
+            :loading="loading"
+            :error="error"
+            @retry="fetchDivisionData"
         />
 
         <!-- Division Groups -->
-        <div v-if="!loading && !error && groupRows.length > 0" class="space-y-6">
+        <div
+            v-if="!loading && !error && groupRows.length > 0"
+            class="space-y-6"
+        >
             <div class="stats shadow mb-6">
                 <div class="stat">
+                    <div class="stat-title">Module</div>
+                    <div class="stat-value text-primary">
+                        Division Ratio Management
+                    </div>
+                </div>
+                <div class="stat">
                     <div class="stat-title">Total Groups</div>
-                    <div class="stat-value text-primary">{{ groupedData.length }}</div>
+                    <div class="stat-value text-primary">
+                        {{ groupedData.length }}
+                    </div>
                 </div>
                 <div class="stat">
                     <div class="stat-title">Groups with Custom Ratios</div>
                     <div class="stat-value text-secondary">
-                        {{ groupedData.filter(g => g.hasCustomRatios).length }}
+                        {{
+                            groupedData.filter((g) => g.hasCustomRatios).length
+                        }}
                     </div>
                 </div>
                 <div class="stat">
                     <div class="stat-title">Total Divisions</div>
                     <div class="stat-value text-accent">
-                        {{ groupedData.reduce((sum, g) => sum + g.divisions.length, 0) }}
+                        {{
+                            groupedData.reduce(
+                                (sum, g) => sum + g.divisions.length,
+                                0
+                            )
+                        }}
                     </div>
                 </div>
             </div>
@@ -187,11 +231,17 @@ onUnmounted(() => navActions.clear());
                                         type="button"
                                         @click="toggleGroup(row.key)"
                                     >
-                                        {{ expandedGroups[row.key] ? "Collapse" : "Expand" }}
+                                        {{
+                                            expandedGroups[row.key]
+                                                ? "Collapse"
+                                                : "Expand"
+                                        }}
                                     </button>
                                 </td>
                                 <td>
-                                    <div class="font-semibold">{{ row.group.display_key }}</div>
+                                    <div class="font-semibold">
+                                        {{ row.group.display_key }}
+                                    </div>
                                     <div class="text-xs opacity-70">
                                         {{ row.group.customer_class }} •
                                         {{ row.group.salesperson_name }}
@@ -237,11 +287,27 @@ onUnmounted(() => navActions.clear());
         </div>
 
         <!-- No Data State -->
-        <div v-else-if="!loading && !error && groupedData.length === 0" class="alert alert-info">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        <div
+            v-if="!loading && !error && groupedData.length === 0"
+            class="alert alert-info"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                class="stroke-current shrink-0 w-6 h-6"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                ></path>
             </svg>
-            <span>No division data available. Please check your data sources.</span>
+            <span
+                >No division data available. Please check your data
+                sources.</span
+            >
         </div>
     </div>
 </template>

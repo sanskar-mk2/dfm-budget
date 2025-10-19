@@ -34,11 +34,14 @@ async def login(
     )
     # Check if user is admin
     is_admin = user.salesman_id == SUPERADMIN or user.salesman_id is ADMIN
+    is_superadmin = user.salesman_id == SUPERADMIN
+    print(user.salesman_id, is_admin, is_superadmin)
 
     response = {
         "access_token": access_token,
         "token_type": "bearer",
         "is_admin": is_admin,
+        "is_superadmin": is_superadmin,
     }
 
     if user.salesman_id and not is_admin:

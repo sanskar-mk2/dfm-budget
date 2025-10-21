@@ -4,7 +4,7 @@ from .core import engine
 DFMBase = automap_base()
 DFMBase.prepare(autoload_with=engine)
 
-Sales = DFMBase.classes.sales
+Sales = getattr(DFMBase.classes, "sales_budget_2026", None)
 Users = DFMBase.classes.users
 Salesperson = DFMBase.classes.salesperson_masters
-Orders = DFMBase.classes.open_orders
+Orders = getattr(DFMBase.classes, "orders_budget_2026", None)

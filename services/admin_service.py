@@ -34,7 +34,7 @@ class AdminService:
             salesman_name = salesperson["salesman_name"]
             role = salesperson["role"] or "Unknown"
 
-            # Get sales data (Q1-Q3 from sales table, Q4 from open_orders)
+            # Get sales data (Q1-Q3 from sales_budget_2026 table, Q4 from orders_budget_2026)
             sales_data = self._get_salesperson_sales_data(salesman_no)
 
             # Get budget data
@@ -89,7 +89,7 @@ class AdminService:
     def _get_salesperson_sales_data(self, salesman_no: int) -> Dict[str, Any]:
         """Get sales data for a specific salesperson"""
 
-        # Q1-Q4 sales from sales table
+        # Q1-Q4 sales from sales_budget_2026 table
         q1_q4_query = text(
             f"""
             SELECT 
@@ -98,7 +98,7 @@ class AdminService:
                 SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales,
                 SUM(CASE WHEN period >= '2025-10-01' AND period < '2026-01-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_sales,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_q1_q4
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE salesperson = {salesman_no}
               AND period >= '2025-01-01' AND period < '2026-01-01'
         """
@@ -117,13 +117,13 @@ class AdminService:
             }
         )
 
-        # Q4 orders from open_orders table
+        # Q4 orders from orders_budget_2026 table
         q4_orders_query = text(
             f"""
             SELECT 
                 SUM(COALESCE(ext_sales, 0)) as q4_orders,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_orders_zero_perc_sales
-            FROM open_orders 
+            FROM orders_budget_2026 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2025-10-01' 
               AND requested_ship_date < '2026-01-01'
@@ -142,7 +142,7 @@ class AdminService:
             f"""
             SELECT 
                 SUM(COALESCE(ext_sales, 0)) as open_2026
-            FROM open_orders 
+            FROM orders_budget_2026 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2026-01-01' 
               AND requested_ship_date < '2027-01-01'

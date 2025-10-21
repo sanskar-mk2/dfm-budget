@@ -132,7 +132,7 @@ class BudgetService:
         query = text(
             """
             SELECT DISTINCT derived_customer_class
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE derived_customer_class IS NOT NULL
               AND derived_customer_class != ''
             ORDER BY derived_customer_class
@@ -147,7 +147,7 @@ class BudgetService:
         query = text(
             """
             SELECT DISTINCT brand
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE brand IS NOT NULL
               AND brand != ''
             ORDER BY brand
@@ -162,7 +162,7 @@ class BudgetService:
         query = text(
             """
             SELECT DISTINCT customer_name
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE customer_name IS NOT NULL
               AND customer_name != ''
             ORDER BY customer_name
@@ -177,7 +177,7 @@ class BudgetService:
         query = text(
             """
             SELECT DISTINCT flag
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE flag IS NOT NULL
               AND flag != ''
             ORDER BY flag

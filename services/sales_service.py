@@ -49,7 +49,7 @@ class SalesService:
         - Each flag has a fixed brand
         - derived_customer_class = 'Hospitality'
         """
-        # Step 1: Get basic sales data grouped by flag, brand (Q1-Q4 2025 from sales table)
+        # Step 1: Get basic sales data grouped by flag, brand (Q1-Q4 2025 from sales_budget_2026 table)
         basic_query = text(
             f"""
             SELECT 
@@ -57,7 +57,7 @@ class SalesService:
                 brand,
                 SUM(COALESCE(ext_sales, 0)) as total_sales,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_total
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE salesperson = {salesman_no}
               AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY flag, brand
@@ -78,7 +78,7 @@ class SalesService:
                 SUM(CASE WHEN period >= '2025-04-01' AND period < '2025-07-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q2_sales,
                 SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales,
                 SUM(CASE WHEN period >= '2025-10-01' AND period < '2026-01-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_sales
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE salesperson = {salesman_no}
               AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY flag, brand
@@ -90,7 +90,7 @@ class SalesService:
             f"{row.flag}_{row.brand}": dict(row._mapping) for row in quarterly_result
         }
 
-        # Step 3: Get Q4 data from open_orders (including zero % sales)
+        # Step 3: Get Q4 data from orders_budget_2026 (including zero % sales)
         q4_query = text(
             f"""
             SELECT 
@@ -98,7 +98,7 @@ class SalesService:
                 brand,
                 SUM(COALESCE(ext_sales, 0)) as q4_sales,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_zero_perc_sales
-            FROM open_orders 
+            FROM orders_budget_2026 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2025-10-01' 
               AND requested_ship_date < '2026-01-01'
@@ -109,14 +109,14 @@ class SalesService:
         q4_result = self.db.exec(q4_query)
         q4_data = {f"{row.flag}_{row.brand}": dict(row._mapping) for row in q4_result}
 
-        # Step 4: Get 2026 open orders data
+        # Step 4: Get 2026 orders data from orders_budget_2026
         open_2026_query = text(
             f"""
             SELECT 
                 flag,
                 brand,
                 SUM(COALESCE(ext_sales, 0)) as open_2026
-            FROM open_orders 
+            FROM orders_budget_2026 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2026-01-01' 
               AND requested_ship_date < '2027-01-01'
@@ -232,7 +232,7 @@ class SalesService:
         - derived_customer_class from data
         - brand = NULL, flag = NULL
         """
-        # Step 1: Get basic sales data grouped by customer_name, derived_customer_class (Q1-Q4 2025 from sales table)
+        # Step 1: Get basic sales data grouped by customer_name, derived_customer_class (Q1-Q4 2025 from sales_budget_2026 table)
         basic_query = text(
             f"""
             SELECT 
@@ -240,7 +240,7 @@ class SalesService:
                 COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
                 SUM(COALESCE(ext_sales, 0)) as total_sales,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as zero_perc_sales_total
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE salesperson = {salesman_no}
               AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY customer_name, derived_customer_class
@@ -260,7 +260,7 @@ class SalesService:
                 SUM(CASE WHEN period >= '2025-04-01' AND period < '2025-07-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q2_sales,
                 SUM(CASE WHEN period >= '2025-07-01' AND period < '2025-10-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q3_sales,
                 SUM(CASE WHEN period >= '2025-10-01' AND period < '2026-01-01' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_sales
-            FROM sales 
+            FROM sales_budget_2026 
             WHERE salesperson = {salesman_no}
               AND period >= '2025-01-01' AND period < '2026-01-01'
             GROUP BY customer_name, derived_customer_class
@@ -273,7 +273,7 @@ class SalesService:
             for row in quarterly_result
         }
 
-        # Step 3: Get Q4 data from open_orders (including zero % sales)
+        # Step 3: Get Q4 data from orders_budget_2026 (including zero % sales)
         q4_query = text(
             f"""
             SELECT 
@@ -281,7 +281,7 @@ class SalesService:
                 COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
                 SUM(COALESCE(ext_sales, 0)) as q4_sales,
                 SUM(CASE WHEN zero_perc_sales = 'yes' THEN COALESCE(ext_sales, 0) ELSE 0 END) as q4_zero_perc_sales
-            FROM open_orders 
+            FROM orders_budget_2026 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2025-10-01' 
               AND requested_ship_date < '2026-01-01'
@@ -295,14 +295,14 @@ class SalesService:
             for row in q4_result
         }
 
-        # Step 4: Get 2026 open orders data
+        # Step 4: Get 2026 orders data from orders_budget_2026
         open_2026_query = text(
             f"""
             SELECT 
                 customer_name,
                 COALESCE(derived_customer_class, 'Unknown') as derived_customer_class,
                 SUM(COALESCE(ext_sales, 0)) as open_2026
-            FROM open_orders 
+            FROM orders_budget_2026 
             WHERE salesperson = {salesman_no}
               AND requested_ship_date >= '2026-01-01' 
               AND requested_ship_date < '2027-01-01'

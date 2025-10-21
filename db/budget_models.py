@@ -1,6 +1,8 @@
+from sqlalchemy import text
 from sqlmodel import SQLModel, Field
 from datetime import datetime
 from .core import engine
+from .dfm_reflect import DFMBase
 
 
 class Budget(SQLModel, table=True):
@@ -77,4 +79,17 @@ class GrossProfitOverride(SQLModel, table=True):
 
 # Create only your own tables
 def init_db():
+    create_budget_clone_tables()
     SQLModel.metadata.create_all(bind=engine)
+    DFMBase.prepare(autoload_with=engine)
+
+
+def create_budget_clone_tables():
+    """Clone structures for budget tables without touching the source tables."""
+    statements = (
+        "CREATE TABLE IF NOT EXISTS sales_budget_2026 LIKE sales",
+        "CREATE TABLE IF NOT EXISTS orders_budget_2026 LIKE open_orders",
+    )
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))

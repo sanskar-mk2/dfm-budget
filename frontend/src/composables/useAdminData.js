@@ -105,6 +105,97 @@ export function useAdminData() {
         computeSubtotals(nonHospitalityData.value)
     );
 
+    const parseNumericValue = (value) => {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === "number") return value;
+        if (typeof value === "string") {
+            const cleaned = value.replace(/[%$,]/g, "").trim();
+            const parsed = parseFloat(cleaned);
+            return Number.isNaN(parsed) ? 0 : parsed;
+        }
+        return 0;
+    };
+
+    const sumField = (rows, keys) => {
+        const lookupKeys = Array.isArray(keys) ? keys : [keys];
+        return rows.reduce((total, row) => {
+            for (const key of lookupKeys) {
+                if (row[key] !== undefined && row[key] !== null) {
+                    total += parseNumericValue(row[key]);
+                    break;
+                }
+            }
+            return total;
+        }, 0);
+    };
+
+    const createTotalsRow = (rows, overrides = {}) => {
+        if (!rows?.length) return null;
+
+        const totals = {
+            salesperson_name: "Total",
+            salesperson_id: "",
+            role: "",
+            brand: "",
+            flag: "",
+            derived_customer_class: "",
+            customer_name: "",
+        };
+
+        const q1Sales = sumField(rows, "q1_sales");
+        const q2Sales = sumField(rows, "q2_sales");
+        const q3Sales = sumField(rows, "q3_sales");
+        const q4Sales = sumField(rows, "q4_sales");
+        const q4Orders = sumField(rows, "q4_orders");
+        const totalSalesFromField = sumField(rows, "total_sales");
+        const computedTotalSales = q1Sales + q2Sales + q3Sales + q4Sales + q4Orders;
+        const totalSales =
+            totalSalesFromField !== 0 ? totalSalesFromField : computedTotalSales;
+        const zeroPercSales = sumField(rows, [
+            "zero_perc_sales_total",
+            "zero_perc_sales",
+        ]);
+        const open2026 = sumField(rows, "open_2026");
+        const q1Budget = sumField(rows, "q1_budget");
+        const q2Budget = sumField(rows, "q2_budget");
+        const q3Budget = sumField(rows, "q3_budget");
+        const q4Budget = sumField(rows, "q4_budget");
+        const totalBudgetFromQuarters = q1Budget + q2Budget + q3Budget + q4Budget;
+        const totalBudgetField = sumField(rows, "total_budget");
+        const totalBudget =
+            totalBudgetFromQuarters !== 0 ? totalBudgetFromQuarters : totalBudgetField;
+
+        const zeroPercPercentValue =
+            totalSales !== 0 ? (zeroPercSales / totalSales) * 100 : 0;
+        const growthPercentValue =
+            totalSales !== 0
+                ? (((totalBudget || 0) - totalSales) / totalSales) * 100
+                : 0;
+
+        return {
+            ...totals,
+            ...overrides,
+            q1_sales: formatCurrencyForCSV(q1Sales),
+            q2_sales: formatCurrencyForCSV(q2Sales),
+            q3_sales: formatCurrencyForCSV(q3Sales),
+            q4_sales: formatCurrencyForCSV(q4Sales),
+            q4_orders: formatCurrencyForCSV(q4Orders),
+            total_sales: formatCurrencyForCSV(totalSales),
+            zero_perc_sales_total: formatCurrencyForCSV(zeroPercSales),
+            zero_perc_sales_percent: Number.isFinite(zeroPercPercentValue)
+                ? zeroPercPercentValue.toFixed(2)
+                : "0.00",
+            open_2026: formatCurrencyForCSV(open2026),
+            q1_budget: formatCurrencyForCSV(q1Budget),
+            q2_budget: formatCurrencyForCSV(q2Budget),
+            q3_budget: formatCurrencyForCSV(q3Budget),
+            q4_budget: formatCurrencyForCSV(q4Budget),
+            growth_percent: Number.isFinite(growthPercentValue)
+                ? growthPercentValue.toFixed(2)
+                : "0.00",
+        };
+    };
+
     async function fetchAdminSummary() {
         loading.value = true;
         error.value = null;
@@ -201,7 +292,12 @@ export function useAdminData() {
         const filename = `${name.replace(/[^a-zA-Z0-9]/g, "_")}_budget_${
             new Date().toISOString().split("T")[0]
         }.csv`;
-        downloadCSV(data, headers, filename);
+        const totalsRow = createTotalsRow(data, {
+            salesperson_name: "Total",
+            role: "",
+        });
+        const preparedData = totalsRow ? [...data, totalsRow] : data;
+        downloadCSV(preparedData, headers, filename);
     }
 
     async function downloadFullBudgetSheet() {
@@ -240,7 +336,11 @@ export function useAdminData() {
             const filename = `full_budget_sheet_${
                 new Date().toISOString().split("T")[0]
             }.csv`;
-            downloadCSV(allData, headers, filename);
+            const totalsRow = createTotalsRow(allData, {
+                salesperson_name: "Grand Total",
+            });
+            const preparedData = totalsRow ? [...allData, totalsRow] : allData;
+            downloadCSV(preparedData, headers, filename);
         } catch (err) {
             console.error("Error downloading full budget sheet:", err);
             alert("Error downloading budget sheet. Please try again.");

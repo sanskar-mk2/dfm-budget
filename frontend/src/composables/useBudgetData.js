@@ -23,6 +23,22 @@ export function useBudgetData() {
 
     let autoSaveTimer = null;
 
+    // Helper function to generate consistent budget keys
+    // Includes customer_class to avoid collisions for non-hospitality entries with same customer_name
+    const getBudgetKey = (item) => {
+        // item can be a sale (with derived_customer_class) or budget (with customer_class)
+        const brand = item.brand || "null";
+        const flag = item.flag || "null";
+        const customerName = item.customer_name || "null";
+        const customerClass = item.customer_class || item.derived_customer_class || "null";
+        return `${brand}_${flag}_${customerName}_${customerClass}`;
+    };
+
+    // Helper function to generate cell keys (includes quarter)
+    const getCellKey = (item, quarter) => {
+        return `${getBudgetKey(item)}_${quarter}`;
+    };
+
     const fetchBudgets = async () => {
         try {
             const response = await apiCall("/api/budget");
@@ -34,9 +50,7 @@ export function useBudgetData() {
             // Create map for quick lookup
             budgetMap.value = {};
             budgets.value.forEach((budget) => {
-                const key = `${budget.brand || "null"}_${
-                    budget.flag || "null"
-                }_${budget.customer_name}`;
+                const key = getBudgetKey(budget);
                 budgetMap.value[key] = budget;
             });
         } catch (err) {
@@ -45,9 +59,7 @@ export function useBudgetData() {
     };
 
     const saveBudgetCell = async (sale, quarter, value) => {
-        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
-            sale.customer_name
-        }_${quarter}`;
+        const cellKey = getCellKey(sale, quarter);
         savingCells.value.add(cellKey);
 
         try {
@@ -55,9 +67,7 @@ export function useBudgetData() {
                 throw new Error("Salesperson data not available");
             }
 
-            const key = `${sale.brand || "null"}_${sale.flag || "null"}_${
-                sale.customer_name
-            }`;
+            const key = getBudgetKey(sale);
             const existingBudget = budgetMap.value[key];
 
             const budgetData = {
@@ -115,9 +125,7 @@ export function useBudgetData() {
     };
 
     const getBudgetValue = (sale, quarter) => {
-        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
-            sale.customer_name
-        }_${quarter}`;
+        const cellKey = getCellKey(sale, quarter);
 
         // Return local input value if it exists (user is typing)
         if (inputValues.value.hasOwnProperty(cellKey)) {
@@ -125,17 +133,13 @@ export function useBudgetData() {
         }
 
         // Otherwise return from budget data
-        const key = `${sale.brand || "null"}_${sale.flag || "null"}_${
-            sale.customer_name
-        }`;
+        const key = getBudgetKey(sale);
         const budget = budgetMap.value[key];
         return budget ? budget[`quarter_${quarter}_sales`] || 0 : 0;
     };
 
     const getCellClass = (sale, quarter) => {
-        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
-            sale.customer_name
-        }_${quarter}`;
+        const cellKey = getCellKey(sale, quarter);
         if (savingCells.value.has(cellKey)) return "bg-blue-50 border-blue-300";
         if (savedCells.value.has(cellKey))
             return "bg-green-50 border-green-300";
@@ -155,9 +159,7 @@ export function useBudgetData() {
     };
 
     const handleBudgetChange = (event, sale, quarter) => {
-        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
-            sale.customer_name
-        }_${quarter}`;
+        const cellKey = getCellKey(sale, quarter);
         const value = event.target.value;
         inputValues.value[cellKey] = value;
 
@@ -167,9 +169,7 @@ export function useBudgetData() {
 
     const handleBudgetBlur = (event, sale, quarter) => {
         const value = event.target.value;
-        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
-            sale.customer_name
-        }_${quarter}`;
+        const cellKey = getCellKey(sale, quarter);
 
         if (autoSaveTimer) {
             clearTimeout(autoSaveTimer);
@@ -182,9 +182,7 @@ export function useBudgetData() {
     };
 
     const handleBudgetInput = (event, sale, quarter) => {
-        const cellKey = `${sale.brand || "null"}_${sale.flag || "null"}_${
-            sale.customer_name
-        }_${quarter}`;
+        const cellKey = getCellKey(sale, quarter);
         inputValues.value[cellKey] = event.target.value;
 
         if (event.key === "Enter") {
@@ -269,9 +267,7 @@ export function useBudgetData() {
             const result = await response.json();
 
             // Add to local state
-            const key = `${customBudgetData.brand || "null"}_${
-                customBudgetData.flag || "null"
-            }_${customBudgetData.customer_name}`;
+            const key = getBudgetKey(result.data);
             budgetMap.value[key] = result.data;
             budgets.value.push(result.data);
 
@@ -296,9 +292,7 @@ export function useBudgetData() {
             );
             if (budgetIndex !== -1) {
                 const budget = budgets.value[budgetIndex];
-                const key = `${budget.brand || "null"}_${
-                    budget.flag || "null"
-                }_${budget.customer_name}`;
+                const key = getBudgetKey(budget);
                 delete budgetMap.value[key];
                 budgets.value.splice(budgetIndex, 1);
             }

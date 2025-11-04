@@ -341,7 +341,7 @@ async def create_salesperson_budget(
     request: Request,
     db: Session = Depends(get_session),
 ) -> Dict[str, Any]:
-    """Create a new budget entry for a specific salesperson (admin only)"""
+    """Create a new budget entry for a specific salesperson (admin only), preventing duplicates"""
     try:
         # Get username from request state (set by auth middleware)
         username = request.state.user["username"]
@@ -369,12 +369,28 @@ async def create_salesperson_budget(
                 detail=f"Salesperson with ID {salesperson_id} not found",
             )
 
-        # Override the salesperson_id in the budget data
+        # Override the salesperson_id and name in the budget data
         budget_data_dict = budget_data.dict()
         budget_data_dict["salesperson_id"] = salesperson_id
         budget_data_dict["salesperson_name"] = salesperson.salesman_name
 
         budget_service = BudgetService(db)
+        # Duplicate prevention logic (same as POST /budget)
+        existing_budgets = budget_service.get_budgets_by_salesperson(salesperson_id)
+        for b in existing_budgets:
+            if (
+                b["salesperson_id"] == salesperson_id and
+                b["salesperson_name"] == salesperson.salesman_name and
+                b["brand"] == budget_data_dict.get("brand") and
+                b["flag"] == budget_data_dict.get("flag") and
+                b["customer_name"] == budget_data_dict.get("customer_name") and
+                b["customer_class"] == budget_data_dict.get("customer_class")
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Identical budget entry already exists for this salesperson."
+                )
+
         budget = budget_service.create_budget(budget_data_dict)
 
         return {

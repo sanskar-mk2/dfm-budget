@@ -83,9 +83,25 @@ async def get_budgets(
 async def create_budget(
     budget_data: BudgetCreate, request: Request, db: Session = Depends(get_session)
 ) -> Dict[str, Any]:
-    """Create a new budget entry"""
+    """Create a new budget entry, ensuring no duplicate (salesperson_id, salesperson_name, brand, flag, customer_name, customer_class)"""
     try:
         budget_service = BudgetService(db)
+        # Check for duplicate
+        existing_budgets = budget_service.get_budgets_by_salesperson(budget_data.salesperson_id)
+        for b in existing_budgets:
+            if (
+                b["salesperson_id"] == budget_data.salesperson_id and
+                b["salesperson_name"] == budget_data.salesperson_name and
+                b["brand"] == budget_data.brand and
+                b["flag"] == budget_data.flag and
+                b["customer_name"] == budget_data.customer_name and
+                b["customer_class"] == budget_data.customer_class
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Identical budget entry already exists for this salesperson."
+                )
+
         budget = budget_service.create_budget(budget_data.dict())
 
         return {
@@ -106,6 +122,8 @@ async def create_budget(
             },
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating budget: {str(e)}")
 

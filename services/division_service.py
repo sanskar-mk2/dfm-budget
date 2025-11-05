@@ -26,8 +26,13 @@ class DivisionService:
                 s.item_division,
                 s.ext_sales,
                 s.period
-              FROM dfm_dashboards.sales s
-              WHERE YEAR(s.period)=2025
+              FROM sales_budget_2026 s
+              WHERE s.period >= '2025-01-01' AND s.period < '2026-01-01'
+                AND s.salesperson IS NOT NULL
+                AND (
+                  (s.derived_customer_class='Hospitality' AND s.flag IS NOT NULL AND s.flag<>'')
+                  OR (s.derived_customer_class<>'Hospitality' AND s.customer_name IS NOT NULL AND s.customer_name<>'')
+                )
             ),
             grouped_sales AS (           -- collapse sales by group_key + division
               SELECT
@@ -59,6 +64,26 @@ class DivisionService:
               FROM ratios_raw
               GROUP BY group_key, customer_class, item_division
             ),
+            ratio_sums AS (             -- Calculate sum of ratios per group for normalization
+              SELECT
+                group_key, customer_class,
+                SUM(division_ratio_2025) AS total_ratio_sum
+              FROM ratios
+              GROUP BY group_key, customer_class
+            ),
+            ratios_normalized AS (       -- Normalize ratios to sum to 1.0 (always normalize when sum > 0 to handle floating point precision)
+              SELECT
+                r.group_key, r.customer_class, r.item_division,
+                CASE 
+                  WHEN rs.total_ratio_sum > 0
+                  THEN r.division_ratio_2025 / rs.total_ratio_sum
+                  ELSE 0
+                END AS division_ratio_2025
+              FROM ratios r
+              JOIN ratio_sums rs
+                ON r.group_key = rs.group_key
+               AND r.customer_class = rs.customer_class
+            ),
             budget_norm AS (
               SELECT
                 b.salesperson_id,
@@ -81,32 +106,118 @@ class DivisionService:
                 SUM(quarter_3_sales) AS q3_total,
                 SUM(quarter_4_sales) AS q4_total
               FROM budget_norm
-              WHERE group_key IS NOT NULL
               GROUP BY salesperson_id, salesperson_name, customer_class, group_key
             ),
             divisions_dedup AS (         -- guard against duplicate div_no rows
               SELECT d.div_no, MIN(d.div_desc) AS div_desc
               FROM dfm_dashboards.division_masters d
               GROUP BY d.div_no
+            ),
+            overall_division_totals AS (  -- Total sales per division across all groups
+              SELECT
+                item_division,
+                SUM(total_sales) AS total_division_sales
+              FROM grouped_sales
+              GROUP BY item_division
+            ),
+            overall_total_sales AS (      -- Total sales across all divisions
+              SELECT SUM(total_division_sales) AS grand_total
+              FROM overall_division_totals
+            ),
+            default_division_ratios AS (  -- Overall division ratios (default for missing historical data)
+              SELECT
+                d.div_no AS item_division,
+                CASE 
+                  WHEN (SELECT grand_total FROM overall_total_sales) > 0
+                  THEN COALESCE(odt.total_division_sales, 0) / (SELECT grand_total FROM overall_total_sales)
+                  ELSE 0
+                END AS default_ratio
+              FROM divisions_dedup d
+              LEFT JOIN overall_division_totals odt ON odt.item_division = d.div_no
+            ),
+            group_historical_totals AS (  -- Check if group has any historical sales
+              SELECT
+                group_key, customer_class,
+                SUM(total_sales) AS group_total_sales
+              FROM grouped_sales
+              GROUP BY group_key, customer_class
             )
             SELECT
               b.salesperson_id, b.salesperson_name, b.customer_class, b.group_key, b.brand,
               d.div_no AS item_division, d.div_desc AS division_name,
-              COALESCE(o.custom_ratio, r.division_ratio_2025, 0) AS effective_ratio,
+              COALESCE(o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ) AS effective_ratio,
               CASE WHEN o.custom_ratio IS NOT NULL THEN 1 ELSE 0 END AS is_custom,
-              ROUND(b.q1_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q1_allocated,
-              ROUND(b.q2_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q2_allocated,
-              ROUND(b.q3_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q3_allocated,
-              ROUND(b.q4_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q4_allocated,
-              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS total_allocated,
-              COALESCE(r.division_ratio_2025, 0) AS division_ratio_2025,
+              CASE WHEN COALESCE(ght.group_total_sales, 0) = 0 AND o.custom_ratio IS NULL THEN 1 ELSE 0 END AS uses_default_ratios,
+              b.q1_total AS q1_budget_total,
+              b.q2_total AS q2_budget_total,
+              b.q3_total AS q3_budget_total,
+              b.q4_total AS q4_budget_total,
+              (b.q1_total+b.q2_total+b.q3_total+b.q4_total) AS total_budget_total,
+              ROUND(b.q1_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q1_allocated,
+              ROUND(b.q2_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q2_allocated,
+              ROUND(b.q3_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q3_allocated,
+              ROUND(b.q4_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q4_allocated,
+              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS total_allocated,
+              COALESCE(
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ) AS division_ratio_2025,
               gs.total_sales AS total_2025_sales
             FROM collapsed_budget b
             CROSS JOIN divisions_dedup d
-            LEFT JOIN ratios r
+            LEFT JOIN group_historical_totals ght
+              ON ght.group_key=b.group_key
+             AND ght.customer_class=b.customer_class
+            LEFT JOIN ratios_normalized r
               ON r.group_key=b.group_key
              AND r.customer_class=b.customer_class
              AND r.item_division=d.div_no
+            LEFT JOIN default_division_ratios dr
+              ON dr.item_division=d.div_no
             LEFT JOIN grouped_sales gs
               ON gs.group_key=r.group_key
              AND gs.customer_class=r.customer_class
@@ -137,6 +248,24 @@ class DivisionService:
                         float(row.effective_ratio) if row.effective_ratio else 0.0
                     ),
                     "is_custom": bool(row.is_custom),
+                    "uses_default_ratios": (
+                        bool(row.uses_default_ratios) if hasattr(row, 'uses_default_ratios') else False
+                    ),
+                    "q1_budget_total": (
+                        float(row.q1_budget_total) if row.q1_budget_total else 0.0
+                    ),
+                    "q2_budget_total": (
+                        float(row.q2_budget_total) if row.q2_budget_total else 0.0
+                    ),
+                    "q3_budget_total": (
+                        float(row.q3_budget_total) if row.q3_budget_total else 0.0
+                    ),
+                    "q4_budget_total": (
+                        float(row.q4_budget_total) if row.q4_budget_total else 0.0
+                    ),
+                    "total_budget_total": (
+                        float(row.total_budget_total) if row.total_budget_total else 0.0
+                    ),
                     "q1_allocated": (
                         float(row.q1_allocated) if row.q1_allocated else 0.0
                     ),
@@ -295,8 +424,13 @@ class DivisionService:
                 CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN 'Hospitality'
                      ELSE s.derived_customer_class END AS customer_class,
                 s.item_division, s.ext_sales, s.period
-              FROM dfm_dashboards.sales s
-              WHERE YEAR(s.period)=2025
+              FROM sales_budget_2026 s
+              WHERE s.period >= '2025-01-01' AND s.period < '2026-01-01'
+                AND s.salesperson IS NOT NULL
+                AND (
+                  (s.derived_customer_class='Hospitality' AND s.flag IS NOT NULL AND s.flag<>'')
+                  OR (s.derived_customer_class<>'Hospitality' AND s.customer_name IS NOT NULL AND s.customer_name<>'')
+                )
             ),
             grouped_sales AS (
               SELECT group_key, customer_class, item_division,
@@ -327,6 +461,26 @@ class DivisionService:
               FROM ratios_raw
               GROUP BY group_key, customer_class, item_division
             ),
+            ratio_sums AS (             -- Calculate sum of ratios per group for normalization
+              SELECT
+                group_key, customer_class,
+                SUM(division_ratio_2025) AS total_ratio_sum
+              FROM ratios
+              GROUP BY group_key, customer_class
+            ),
+            ratios_normalized AS (       -- Normalize ratios to sum to 1.0 (always normalize when sum > 0 to handle floating point precision)
+              SELECT
+                r.group_key, r.customer_class, r.item_division,
+                CASE 
+                  WHEN rs.total_ratio_sum > 0
+                  THEN r.division_ratio_2025 / rs.total_ratio_sum
+                  ELSE 0
+                END AS division_ratio_2025
+              FROM ratios r
+              JOIN ratio_sums rs
+                ON r.group_key = rs.group_key
+               AND r.customer_class = rs.customer_class
+            ),
             budget_norm AS (
               SELECT
                 b.salesperson_id, b.salesperson_name,
@@ -348,32 +502,118 @@ class DivisionService:
                 SUM(quarter_3_sales) AS q3_total,
                 SUM(quarter_4_sales) AS q4_total
               FROM budget_norm
-              WHERE group_key IS NOT NULL
               GROUP BY salesperson_id, salesperson_name, customer_class, group_key
             ),
             divisions_dedup AS (
               SELECT d.div_no, MIN(d.div_desc) AS div_desc
               FROM dfm_dashboards.division_masters d
               GROUP BY d.div_no
+            ),
+            overall_division_totals AS (  -- Total sales per division across all groups
+              SELECT
+                item_division,
+                SUM(total_sales) AS total_division_sales
+              FROM grouped_sales
+              GROUP BY item_division
+            ),
+            overall_total_sales AS (      -- Total sales across all divisions
+              SELECT SUM(total_division_sales) AS grand_total
+              FROM overall_division_totals
+            ),
+            default_division_ratios AS (  -- Overall division ratios (default for missing historical data)
+              SELECT
+                d.div_no AS item_division,
+                CASE 
+                  WHEN (SELECT grand_total FROM overall_total_sales) > 0
+                  THEN COALESCE(odt.total_division_sales, 0) / (SELECT grand_total FROM overall_total_sales)
+                  ELSE 0
+                END AS default_ratio
+              FROM divisions_dedup d
+              LEFT JOIN overall_division_totals odt ON odt.item_division = d.div_no
+            ),
+            group_historical_totals AS (  -- Check if group has any historical sales
+              SELECT
+                group_key, customer_class,
+                SUM(total_sales) AS group_total_sales
+              FROM grouped_sales
+              GROUP BY group_key, customer_class
             )
             SELECT
               b.salesperson_id, b.salesperson_name, b.customer_class, b.group_key, b.brand,
               d.div_no AS item_division, d.div_desc AS division_name,
-              COALESCE(o.custom_ratio, r.division_ratio_2025, 0) AS effective_ratio,
+              COALESCE(o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ) AS effective_ratio,
               CASE WHEN o.custom_ratio IS NOT NULL THEN 1 ELSE 0 END AS is_custom,
-              ROUND(b.q1_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q1_allocated,
-              ROUND(b.q2_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q2_allocated,
-              ROUND(b.q3_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q3_allocated,
-              ROUND(b.q4_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q4_allocated,
-              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS total_allocated,
-              COALESCE(r.division_ratio_2025, 0) AS division_ratio_2025,
+              CASE WHEN COALESCE(ght.group_total_sales, 0) = 0 AND o.custom_ratio IS NULL THEN 1 ELSE 0 END AS uses_default_ratios,
+              b.q1_total AS q1_budget_total,
+              b.q2_total AS q2_budget_total,
+              b.q3_total AS q3_budget_total,
+              b.q4_total AS q4_budget_total,
+              (b.q1_total+b.q2_total+b.q3_total+b.q4_total) AS total_budget_total,
+              ROUND(b.q1_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q1_allocated,
+              ROUND(b.q2_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q2_allocated,
+              ROUND(b.q3_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q3_allocated,
+              ROUND(b.q4_total * COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS q4_allocated,
+              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(
+                o.custom_ratio, 
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ), 2) AS total_allocated,
+              COALESCE(
+                CASE 
+                  WHEN COALESCE(ght.group_total_sales, 0) = 0 THEN dr.default_ratio 
+                  ELSE COALESCE(r.division_ratio_2025, 0)
+                END,
+                0
+              ) AS division_ratio_2025,
               gs.total_sales AS total_2025_sales
             FROM collapsed_budget b
             CROSS JOIN divisions_dedup d
-            LEFT JOIN ratios r
+            LEFT JOIN group_historical_totals ght
+              ON ght.group_key=b.group_key
+             AND ght.customer_class=b.customer_class
+            LEFT JOIN ratios_normalized r
               ON r.group_key=b.group_key
              AND r.customer_class=b.customer_class
              AND r.item_division=d.div_no
+            LEFT JOIN default_division_ratios dr
+              ON dr.item_division=d.div_no
             LEFT JOIN grouped_sales gs
               ON gs.group_key=r.group_key
              AND gs.customer_class=r.customer_class
@@ -411,6 +651,24 @@ class DivisionService:
                         float(row.effective_ratio) if row.effective_ratio else 0.0
                     ),
                     "is_custom": bool(row.is_custom),
+                    "uses_default_ratios": (
+                        bool(row.uses_default_ratios) if hasattr(row, 'uses_default_ratios') else False
+                    ),
+                    "q1_budget_total": (
+                        float(row.q1_budget_total) if row.q1_budget_total else 0.0
+                    ),
+                    "q2_budget_total": (
+                        float(row.q2_budget_total) if row.q2_budget_total else 0.0
+                    ),
+                    "q3_budget_total": (
+                        float(row.q3_budget_total) if row.q3_budget_total else 0.0
+                    ),
+                    "q4_budget_total": (
+                        float(row.q4_budget_total) if row.q4_budget_total else 0.0
+                    ),
+                    "total_budget_total": (
+                        float(row.total_budget_total) if row.total_budget_total else 0.0
+                    ),
                     "q1_allocated": (
                         float(row.q1_allocated) if row.q1_allocated else 0.0
                     ),

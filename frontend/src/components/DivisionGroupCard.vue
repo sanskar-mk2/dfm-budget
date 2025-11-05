@@ -144,9 +144,14 @@ const handleCollapse = () => {
         <div class="card-body">
             <!-- Group Header -->
             <div class="flex items-center justify-between mb-4">
-                <h3 class="card-title text-lg">
-                    {{ groupLabel }}
-                </h3>
+                <div class="flex items-center gap-2">
+                    <h3 class="card-title text-lg">
+                        {{ groupLabel }}
+                    </h3>
+                    <span v-if="group.usesDefaultRatios" class="badge badge-warning badge-sm">
+                        Missing historical data, using average ratios
+                    </span>
+                </div>
                 <div class="flex items-center gap-2">
                     <button
                         @click="handleReset"

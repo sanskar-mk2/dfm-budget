@@ -30,6 +30,7 @@ export function useDivisionData() {
                     divisions: [],
                     totalRatio: 0,
                     hasCustomRatios: false,
+                    usesDefaultRatios: false,
                 };
             }
 
@@ -38,6 +39,7 @@ export function useDivisionData() {
                 division_name: item.division_name,
                 effective_ratio: item.effective_ratio,
                 is_custom: item.is_custom,
+                uses_default_ratios: item.uses_default_ratios || false,
                 q1_allocated: item.q1_allocated,
                 q2_allocated: item.q2_allocated,
                 q3_allocated: item.q3_allocated,
@@ -52,6 +54,9 @@ export function useDivisionData() {
             groups[key].totalRatio += division.effective_ratio;
             if (division.is_custom) {
                 groups[key].hasCustomRatios = true;
+            }
+            if (division.uses_default_ratios) {
+                groups[key].usesDefaultRatios = true;
             }
         });
 

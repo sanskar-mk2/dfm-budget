@@ -70,23 +70,16 @@ class GrossProfitService:
                   s.salesperson AS salesperson_id,
                   IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name) AS group_key,
                   s.derived_customer_class AS customer_class,
-                  SUM(IF(MONTH(s.period) BETWEEN 1 AND 3, s.ext_sales, 0)) AS q1_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 1 AND 3, s.ext_cost,  0)) AS q1_cost,
-                  SUM(IF(MONTH(s.period) BETWEEN 4 AND 6, s.ext_sales, 0)) AS q2_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 4 AND 6, s.ext_cost,  0)) AS q2_cost,
-                  SUM(IF(MONTH(s.period) BETWEEN 7 AND 9, s.ext_sales, 0)) AS q3_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 7 AND 9, s.ext_cost,  0)) AS q3_cost,
-                  SUM(IF(MONTH(s.period) BETWEEN 10 AND 12, s.ext_sales, 0)) AS q4_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 10 AND 12, s.ext_cost,  0)) AS q4_cost
-                FROM dfm_dashboards.sales s
-                JOIN (
-                  SELECT so.order_no
-                  FROM dfm_dashboards.sales so
-                  WHERE YEAR(so.period)=2025
-                  GROUP BY so.order_no
-                  HAVING SUM(so.qty)>=0 AND SUM(so.is_warranty='yes')=0
-                ) vo ON vo.order_no = s.order_no
-                WHERE YEAR(s.period)=2025
+                  SUM(CASE WHEN s.period >= '2025-01-01' AND s.period < '2025-04-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q1_sales,
+                  SUM(CASE WHEN s.period >= '2025-01-01' AND s.period < '2025-04-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q1_cost,
+                  SUM(CASE WHEN s.period >= '2025-04-01' AND s.period < '2025-07-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q2_sales,
+                  SUM(CASE WHEN s.period >= '2025-04-01' AND s.period < '2025-07-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q2_cost,
+                  SUM(CASE WHEN s.period >= '2025-07-01' AND s.period < '2025-10-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q3_sales,
+                  SUM(CASE WHEN s.period >= '2025-07-01' AND s.period < '2025-10-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q3_cost,
+                  SUM(CASE WHEN s.period >= '2025-10-01' AND s.period < '2026-01-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q4_sales,
+                  SUM(CASE WHEN s.period >= '2025-10-01' AND s.period < '2026-01-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q4_cost
+                FROM sales_budget_2026 s
+                WHERE s.period >= '2025-01-01' AND s.period < '2026-01-01'
                   AND s.salesperson IS NOT NULL
                   AND (
                     (s.derived_customer_class='Hospitality' AND s.flag IS NOT NULL AND s.flag<>'')
@@ -279,23 +272,16 @@ class GrossProfitService:
                   s.salesperson AS salesperson_id,
                   IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name) AS group_key,
                   s.derived_customer_class AS customer_class,
-                  SUM(IF(MONTH(s.period) BETWEEN 1 AND 3, s.ext_sales, 0)) AS q1_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 1 AND 3, s.ext_cost,  0)) AS q1_cost,
-                  SUM(IF(MONTH(s.period) BETWEEN 4 AND 6, s.ext_sales, 0)) AS q2_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 4 AND 6, s.ext_cost,  0)) AS q2_cost,
-                  SUM(IF(MONTH(s.period) BETWEEN 7 AND 9, s.ext_sales, 0)) AS q3_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 7 AND 9, s.ext_cost,  0)) AS q3_cost,
-                  SUM(IF(MONTH(s.period) BETWEEN 10 AND 12, s.ext_sales, 0)) AS q4_sales,
-                  SUM(IF(MONTH(s.period) BETWEEN 10 AND 12, s.ext_cost,  0)) AS q4_cost
-                FROM dfm_dashboards.sales s
-                JOIN (
-                  SELECT so.order_no
-                  FROM dfm_dashboards.sales so
-                  WHERE YEAR(so.period)=2025
-                  GROUP BY so.order_no
-                  HAVING SUM(so.qty)>=0 AND SUM(so.is_warranty='yes')=0
-                ) vo ON vo.order_no = s.order_no
-                WHERE YEAR(s.period)=2025
+                  SUM(CASE WHEN s.period >= '2025-01-01' AND s.period < '2025-04-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q1_sales,
+                  SUM(CASE WHEN s.period >= '2025-01-01' AND s.period < '2025-04-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q1_cost,
+                  SUM(CASE WHEN s.period >= '2025-04-01' AND s.period < '2025-07-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q2_sales,
+                  SUM(CASE WHEN s.period >= '2025-04-01' AND s.period < '2025-07-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q2_cost,
+                  SUM(CASE WHEN s.period >= '2025-07-01' AND s.period < '2025-10-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q3_sales,
+                  SUM(CASE WHEN s.period >= '2025-07-01' AND s.period < '2025-10-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q3_cost,
+                  SUM(CASE WHEN s.period >= '2025-10-01' AND s.period < '2026-01-01' THEN COALESCE(s.ext_sales, 0) ELSE 0 END) AS q4_sales,
+                  SUM(CASE WHEN s.period >= '2025-10-01' AND s.period < '2026-01-01' THEN COALESCE(s.ext_cost, 0) ELSE 0 END) AS q4_cost
+                FROM sales_budget_2026 s
+                WHERE s.period >= '2025-01-01' AND s.period < '2026-01-01'
                   AND s.salesperson IS NOT NULL
                   AND (s.derived_customer_class=:cc AND IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name)=:gk)
                 GROUP BY s.salesperson,

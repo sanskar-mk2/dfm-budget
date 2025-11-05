@@ -5,6 +5,7 @@ import { useGrossProfitData } from "@/composables/useGrossProfitData";
 import GrossProfitGroupCard from "@/components/GrossProfitGroupCard.vue";
 import LoadingError from "@/components/LoadingError.vue";
 import { useAuthStore } from "@/stores/auth";
+import { downloadCSV, formatCurrencyForCSV } from "@/utils/downloadUtils";
 
 const navActions = inject("navActions");
 const { grouped, fetch, save, reset, resetAll, loading } = useGrossProfitData();
@@ -38,8 +39,119 @@ const backAction = {
     icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>',
 };
 
+// CSV Export functionality - defined early so it can be used in updateNavActions
+const prepareDataForCSV = () => {
+    if (!grouped.value?.length) return [];
+    
+    return grouped.value.map((group) => {
+        const q1 = group.quarters.find(q => q.label === "Q1");
+        const q2 = group.quarters.find(q => q.label === "Q2");
+        const q3 = group.quarters.find(q => q.label === "Q3");
+        const q4 = group.quarters.find(q => q.label === "Q4");
+        
+        const total2025Sales = (q1?.sales_2025 || 0) + (q2?.sales_2025 || 0) + (q3?.sales_2025 || 0) + (q4?.sales_2025 || 0);
+        const total2026Budget = (q1?.sales || 0) + (q2?.sales || 0) + (q3?.sales || 0) + (q4?.sales || 0);
+        const totalGpValue = (q1?.gp_value || 0) + (q2?.gp_value || 0) + (q3?.gp_value || 0) + (q4?.gp_value || 0);
+        
+        return {
+            salesperson_name: group.salesperson_name,
+            salesperson_id: group.salesperson_id,
+            customer_class: group.customer_class,
+            group_key: group.group_key,
+            brand: group.brand || "",
+            // 2025 Sales
+            q1_2025_sales: formatCurrencyForCSV(q1?.sales_2025 || 0),
+            q2_2025_sales: formatCurrencyForCSV(q2?.sales_2025 || 0),
+            q3_2025_sales: formatCurrencyForCSV(q3?.sales_2025 || 0),
+            q4_2025_sales: formatCurrencyForCSV(q4?.sales_2025 || 0),
+            total_2025_sales: formatCurrencyForCSV(total2025Sales),
+            // 2026 Budget
+            q1_2026_budget: formatCurrencyForCSV(q1?.sales || 0),
+            q2_2026_budget: formatCurrencyForCSV(q2?.sales || 0),
+            q3_2026_budget: formatCurrencyForCSV(q3?.sales || 0),
+            q4_2026_budget: formatCurrencyForCSV(q4?.sales || 0),
+            total_2026_budget: formatCurrencyForCSV(total2026Budget),
+            // Historical GP%
+            q1_historical_gp_percent: q1?.gp_percent != null ? ((q1.gp_percent * 100).toFixed(2) + "%") : "",
+            q2_historical_gp_percent: q2?.gp_percent != null ? ((q2.gp_percent * 100).toFixed(2) + "%") : "",
+            q3_historical_gp_percent: q3?.gp_percent != null ? ((q3.gp_percent * 100).toFixed(2) + "%") : "",
+            q4_historical_gp_percent: q4?.gp_percent != null ? ((q4.gp_percent * 100).toFixed(2) + "%") : "",
+            // Effective GP%
+            q1_effective_gp_percent: q1?.effective_gp_percent != null ? ((q1.effective_gp_percent * 100).toFixed(2) + "%") : "",
+            q2_effective_gp_percent: q2?.effective_gp_percent != null ? ((q2.effective_gp_percent * 100).toFixed(2) + "%") : "",
+            q3_effective_gp_percent: q3?.effective_gp_percent != null ? ((q3.effective_gp_percent * 100).toFixed(2) + "%") : "",
+            q4_effective_gp_percent: q4?.effective_gp_percent != null ? ((q4.effective_gp_percent * 100).toFixed(2) + "%") : "",
+            full_year_effective_gp_percent: group.effective_gp_percent != null ? ((group.effective_gp_percent * 100).toFixed(2) + "%") : "",
+            // GP Values
+            q1_gp_value: formatCurrencyForCSV(q1?.gp_value || 0),
+            q2_gp_value: formatCurrencyForCSV(q2?.gp_value || 0),
+            q3_gp_value: formatCurrencyForCSV(q3?.gp_value || 0),
+            q4_gp_value: formatCurrencyForCSV(q4?.gp_value || 0),
+            total_gp_value: formatCurrencyForCSV(totalGpValue),
+            // Flags
+            has_custom_overrides: group.is_custom ? "Yes" : "No",
+        };
+    });
+};
+
+const getCSVHeaders = () => [
+    { key: 'salesperson_name', label: 'Salesperson Name' },
+    { key: 'salesperson_id', label: 'Salesperson ID' },
+    { key: 'customer_class', label: 'Customer Class' },
+    { key: 'group_key', label: 'Group Key' },
+    { key: 'brand', label: 'Brand' },
+    { key: 'q1_2025_sales', label: 'Q1 2025 Sales' },
+    { key: 'q2_2025_sales', label: 'Q2 2025 Sales' },
+    { key: 'q3_2025_sales', label: 'Q3 2025 Sales' },
+    { key: 'q4_2025_sales', label: 'Q4 2025 Sales' },
+    { key: 'total_2025_sales', label: 'Total 2025 Sales' },
+    { key: 'q1_2026_budget', label: 'Q1 2026 Budget' },
+    { key: 'q2_2026_budget', label: 'Q2 2026 Budget' },
+    { key: 'q3_2026_budget', label: 'Q3 2026 Budget' },
+    { key: 'q4_2026_budget', label: 'Q4 2026 Budget' },
+    { key: 'total_2026_budget', label: 'Total 2026 Budget' },
+    { key: 'q1_historical_gp_percent', label: 'Q1 Historical GP%' },
+    { key: 'q2_historical_gp_percent', label: 'Q2 Historical GP%' },
+    { key: 'q3_historical_gp_percent', label: 'Q3 Historical GP%' },
+    { key: 'q4_historical_gp_percent', label: 'Q4 Historical GP%' },
+    { key: 'q1_effective_gp_percent', label: 'Q1 Effective GP%' },
+    { key: 'q2_effective_gp_percent', label: 'Q2 Effective GP%' },
+    { key: 'q3_effective_gp_percent', label: 'Q3 Effective GP%' },
+    { key: 'q4_effective_gp_percent', label: 'Q4 Effective GP%' },
+    { key: 'full_year_effective_gp_percent', label: 'Full Year Effective GP%' },
+    { key: 'q1_gp_value', label: 'Q1 GP Value' },
+    { key: 'q2_gp_value', label: 'Q2 GP Value' },
+    { key: 'q3_gp_value', label: 'Q3 GP Value' },
+    { key: 'q4_gp_value', label: 'Q4 GP Value' },
+    { key: 'total_gp_value', label: 'Total GP Value' },
+    { key: 'has_custom_overrides', label: 'Has Custom Overrides' },
+];
+
+const handleExportCSV = () => {
+    const data = prepareDataForCSV();
+    if (!data.length) {
+        alert("No data available to export");
+        return;
+    }
+    
+    const headers = getCSVHeaders();
+    const filename = `gross_profit_${new Date().toISOString().split("T")[0]}.csv`;
+    downloadCSV(data, headers, filename);
+};
+
+const exportAction = {
+    id: "export-csv",
+    text: "Export to CSV",
+    class: "btn btn-primary mr-2",
+    handler: handleExportCSV,
+    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
+};
+
 const updateNavActions = () => {
     const actions = [];
+    if (adminStatus.value || superadminStatus.value) {
+        actions.push(exportAction);
+    }
     if (superadminStatus.value) {
         actions.push(resetAllAction);
     }

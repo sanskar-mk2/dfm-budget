@@ -64,7 +64,10 @@ class GrossProfitOverride(SQLModel, table=True):
     salesperson_name: str = Field(max_length=255, description="Salesperson Name")
     customer_class: str = Field(max_length=50, description="Customer Class")
     group_key: str = Field(max_length=255, description="Group Key")
-    custom_gp_percent: float  # 0.0–1.0 range (e.g., 0.52)
+    custom_q1_gp_percent: float | None = Field(default=None, description="Custom Q1 GP% (0.0–1.0 range)")
+    custom_q2_gp_percent: float | None = Field(default=None, description="Custom Q2 GP% (0.0–1.0 range)")
+    custom_q3_gp_percent: float | None = Field(default=None, description="Custom Q3 GP% (0.0–1.0 range)")
+    custom_q4_gp_percent: float | None = Field(default=None, description="Custom Q4 GP% (0.0–1.0 range)")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

@@ -14,7 +14,10 @@ class GpOverride(BaseModel):
     salesperson_name: str
     customer_class: str
     group_key: str
-    custom_gp_percent: float
+    custom_q1_gp_percent: float | None = None
+    custom_q2_gp_percent: float | None = None
+    custom_q3_gp_percent: float | None = None
+    custom_q4_gp_percent: float | None = None
 
 
 class SaveGpOverrides(BaseModel):

@@ -5,6 +5,7 @@ import { useDivisionData } from "@/composables/useDivisionData";
 import DivisionGroupCard from "@/components/DivisionGroupCard.vue";
 import LoadingError from "@/components/LoadingError.vue";
 import { useAuthStore } from "@/stores/auth";
+import { downloadCSV, formatCurrencyForCSV } from "@/utils/downloadUtils";
 
 const navActions = inject("navActions");
 const {
@@ -63,8 +64,108 @@ const backAction = {
     icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>',
 };
 
+// CSV Export functionality - defined early so it can be used in updateNavActions
+const prepareDataForCSV = () => {
+    if (!groupedData.value?.length) return [];
+    
+    const csvRows = [];
+    
+    groupedData.value.forEach((group) => {
+        // If group has divisions, create a row for each division
+        if (group.divisions && group.divisions.length > 0) {
+            group.divisions.forEach((division) => {
+                csvRows.push({
+                    salesperson_name: group.salesperson_name,
+                    salesperson_id: group.salesperson_id,
+                    customer_class: group.customer_class,
+                    group_key: group.group_key,
+                    brand: group.brand || "",
+                    has_custom_ratios: group.hasCustomRatios ? "Yes" : "No",
+                    item_division: division.item_division,
+                    division_name: division.division_name || "",
+                    division_ratio_2025: division.division_ratio_2025 != null ? ((division.division_ratio_2025 * 100).toFixed(2) + "%") : "",
+                    effective_ratio: division.effective_ratio != null ? ((division.effective_ratio * 100).toFixed(2) + "%") : "",
+                    is_custom: division.is_custom ? "Yes" : "No",
+                    total_2025_sales: formatCurrencyForCSV(division.total_2025_sales || 0),
+                    q1_allocated: formatCurrencyForCSV(division.q1_allocated || 0),
+                    q2_allocated: formatCurrencyForCSV(division.q2_allocated || 0),
+                    q3_allocated: formatCurrencyForCSV(division.q3_allocated || 0),
+                    q4_allocated: formatCurrencyForCSV(division.q4_allocated || 0),
+                    total_allocated: formatCurrencyForCSV(division.total_allocated || 0),
+                });
+            });
+        } else {
+            // If no divisions, still create a row with group info
+            csvRows.push({
+                salesperson_name: group.salesperson_name,
+                salesperson_id: group.salesperson_id,
+                customer_class: group.customer_class,
+                group_key: group.group_key,
+                brand: group.brand || "",
+                has_custom_ratios: group.hasCustomRatios ? "Yes" : "No",
+                item_division: "",
+                division_name: "",
+                division_ratio_2025: "",
+                effective_ratio: "",
+                is_custom: "",
+                total_2025_sales: "",
+                q1_allocated: "",
+                q2_allocated: "",
+                q3_allocated: "",
+                q4_allocated: "",
+                total_allocated: "",
+            });
+        }
+    });
+    
+    return csvRows;
+};
+
+const getCSVHeaders = () => [
+    { key: 'salesperson_name', label: 'Salesperson Name' },
+    { key: 'salesperson_id', label: 'Salesperson ID' },
+    { key: 'customer_class', label: 'Customer Class' },
+    { key: 'group_key', label: 'Group Key' },
+    { key: 'brand', label: 'Brand' },
+    { key: 'has_custom_ratios', label: 'Has Custom Ratios' },
+    { key: 'item_division', label: 'Item Division' },
+    { key: 'division_name', label: 'Division Name' },
+    { key: 'division_ratio_2025', label: '2025 Division Ratio' },
+    { key: 'effective_ratio', label: 'Effective Ratio' },
+    { key: 'is_custom', label: 'Is Custom' },
+    { key: 'total_2025_sales', label: 'Total 2025 Sales' },
+    { key: 'q1_allocated', label: 'Q1 Allocated' },
+    { key: 'q2_allocated', label: 'Q2 Allocated' },
+    { key: 'q3_allocated', label: 'Q3 Allocated' },
+    { key: 'q4_allocated', label: 'Q4 Allocated' },
+    { key: 'total_allocated', label: 'Total Allocated' },
+];
+
+const handleExportCSV = () => {
+    const data = prepareDataForCSV();
+    if (!data.length) {
+        alert("No data available to export");
+        return;
+    }
+    
+    const headers = getCSVHeaders();
+    const filename = `division_ratios_${new Date().toISOString().split("T")[0]}.csv`;
+    downloadCSV(data, headers, filename);
+};
+
+const exportAction = {
+    id: "export-csv",
+    text: "Export to CSV",
+    class: "btn btn-primary mr-2",
+    handler: handleExportCSV,
+    icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>',
+};
+
 const updateNavActions = () => {
     const actions = [];
+    if (adminStatus.value || superadminStatus.value) {
+        actions.push(exportAction);
+    }
     if (superadminStatus.value) {
         actions.push(resetAllAction);
     }

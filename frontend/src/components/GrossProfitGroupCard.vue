@@ -1,5 +1,4 @@
 <script setup>
-import GrossProfitSlider from "./GrossProfitSlider.vue";
 import { ref, computed, watch, reactive } from "vue";
 
 const props = defineProps({
@@ -15,34 +14,51 @@ const saving = ref(false);
 // Create a local reactive copy of the group data
 const localGroup = reactive({
     ...props.group,
+    quarters: props.group.quarters.map(q => ({ ...q }))
 });
 
-// Track original effective_gp_percent to detect changes
-const lastSavedValue = ref(props.group.effective_gp_percent);
+// Track original quarter effective_gp_percent values to detect changes
+const lastSavedQuarters = ref(
+    props.group.quarters.map(q => ({
+        label: q.label,
+        effective_gp_percent: q.effective_gp_percent
+    }))
+);
 
-// Watch for group changes to update localGroup and lastSavedValue when we get fresh data from server
+// Watch for group changes to update localGroup and lastSavedQuarters when we get fresh data from server
 watch(
     () => props.group,
     (newGroup) => {
         // Update local group with fresh data from server
-        Object.assign(localGroup, newGroup);
+        Object.assign(localGroup, {
+            ...newGroup,
+            quarters: newGroup.quarters.map(q => ({ ...q }))
+        });
 
-        // If we're not in the middle of a save/reset operation, update lastSavedValue
+        // If we're not in the middle of a save/reset operation, update lastSavedQuarters
         if (!saving.value) {
-            lastSavedValue.value = newGroup.effective_gp_percent;
+            lastSavedQuarters.value = newGroup.quarters.map(q => ({
+                label: q.label,
+                effective_gp_percent: q.effective_gp_percent
+            }));
         }
     },
     { deep: true }
 );
 
-// Computed property to detect if there are changes
+// Computed property to detect if there are changes in any quarter
 const hasChanges = computed(() => {
-    const current = localGroup.effective_gp_percent;
-    const saved = lastSavedValue.value;
-    const diff = Math.abs(current - saved);
-    const hasChangesResult = diff > 0.001;
-
-    return hasChangesResult;
+    for (let i = 0; i < localGroup.quarters.length; i++) {
+        const current = localGroup.quarters[i].effective_gp_percent;
+        const saved = lastSavedQuarters.value.find(q => q.label === localGroup.quarters[i].label);
+        if (saved) {
+            const diff = Math.abs((current || 0) - (saved.effective_gp_percent || 0));
+            if (diff > 0.001) {
+                return true;
+            }
+        }
+    }
+    return false;
 });
 
 // Computed property to detect if reset should be enabled
@@ -55,8 +71,11 @@ async function handleSave() {
     saving.value = true;
     try {
         await props.onSave(localGroup);
-        // Update last saved value after successful save
-        lastSavedValue.value = localGroup.effective_gp_percent;
+        // Update last saved quarter values after successful save
+        lastSavedQuarters.value = localGroup.quarters.map(q => ({
+            label: q.label,
+            effective_gp_percent: q.effective_gp_percent
+        }));
     } finally {
         saving.value = false;
     }
@@ -66,8 +85,11 @@ async function handleReset() {
     saving.value = true;
     try {
         await props.onReset(localGroup);
-        // Update last saved value after successful reset
-        lastSavedValue.value = localGroup.effective_gp_percent;
+        // Update last saved quarter values after successful reset
+        lastSavedQuarters.value = localGroup.quarters.map(q => ({
+            label: q.label,
+            effective_gp_percent: q.effective_gp_percent
+        }));
     } finally {
         saving.value = false;
     }
@@ -83,6 +105,30 @@ function fmtMoney(v) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     }).format(v || 0);
+}
+
+// Convert decimal to percentage for input display
+function toPercentInput(v) {
+    if (v == null || v === undefined) return "";
+    return (v * 100).toFixed(1);
+}
+
+// Convert percentage input to decimal
+function fromPercentInput(v) {
+    if (!v || v === "") return null;
+    const num = parseFloat(v);
+    if (isNaN(num)) return null;
+    return Math.min(Math.max(num / 100, 0), 1);
+}
+
+// Handle input for effective GP%
+function updateEffectiveGp(quarter, value) {
+    const decimal = fromPercentInput(value);
+    quarter.effective_gp_percent = decimal;
+    // Recalculate GP value based on the new effective GP%
+    if (decimal !== null && quarter.sales !== null && quarter.sales !== undefined) {
+        quarter.gp_value = Math.round(quarter.sales * decimal * 100) / 100;
+    }
 }
 
 const handleCollapse = () => {
@@ -133,6 +179,7 @@ const handleCollapse = () => {
                             <th>2025 Sales</th>
                             <th>2026 Budget</th>
                             <th>Historical GP%</th>
+                            <th>Effective GP%</th>
                             <th>GP $ (Est.)</th>
                         </tr>
                     </thead>
@@ -142,6 +189,20 @@ const handleCollapse = () => {
                             <td>{{ fmtMoney(q.sales_2025) }}</td>
                             <td>{{ fmtMoney(q.sales) }}</td>
                             <td>{{ fmtPct(q.gp_percent) }}</td>
+                            <td>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="100"
+                                    :value="toPercentInput(q.effective_gp_percent)"
+                                    @input="(e) => updateEffectiveGp(q, e.target.value)"
+                                    @blur="(e) => updateEffectiveGp(q, e.target.value)"
+                                    class="input input-bordered input-sm w-20 text-right font-mono"
+                                    placeholder="0.0"
+                                />
+                                <span class="text-xs opacity-60 ml-1">%</span>
+                            </td>
                             <td class="font-mono">
                                 {{ fmtMoney(q.gp_value) }}
                             </td>
@@ -150,24 +211,16 @@ const handleCollapse = () => {
                 </table>
             </div>
 
-            <!-- GP% Override Section -->
-            <div class="flex justify-between items-center mt-4">
-                <div class="w-full max-w-sm">
-                    <label class="text-sm font-medium mb-2 block">
-                        Effective GP%
-                    </label>
-                    <div class="flex items-center space-x-2">
-                        <GrossProfitSlider
-                            v-model="localGroup.effective_gp_percent"
-                        />
-                        <div class="text-sm opacity-70">
-                            <span
-                                v-if="localGroup.is_custom"
-                                class="badge badge-sm badge-primary ml-2"
-                                >Custom</span
-                            >
-                        </div>
-                    </div>
+            <!-- Reference Info -->
+            <div class="mt-4 pt-4 border-t border-base-300">
+                <div class="flex items-center justify-between text-sm">
+                    <span class="opacity-70">
+                        <span v-if="localGroup.is_custom" class="badge badge-sm badge-primary mr-2">Has Custom Overrides</span>
+                        Full-Year Effective GP% (Reference): 
+                    </span>
+                    <span class="font-mono opacity-70">
+                        {{ fmtPct(localGroup.effective_gp_percent) }}
+                    </span>
                 </div>
             </div>
         </div>

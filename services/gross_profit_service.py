@@ -118,16 +118,30 @@ class GrossProfitService:
               g.q4_gp_percent,
               g.full_year_gp_percent,
 
-              COALESCE(o.custom_gp_percent, g.full_year_gp_percent) AS effective_gp_percent,
-              CASE WHEN o.custom_gp_percent IS NOT NULL THEN 1 ELSE 0 END AS is_custom,
+              /* Quarter-specific effective GP% with fallback: custom -> historical -> full-year */
+              COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
+              COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
+              COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
+              COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
 
-              ROUND(b.quarter_1_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
-              ROUND(b.quarter_2_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
-              ROUND(b.quarter_3_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
-              ROUND(b.quarter_4_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
+              /* Full-year effective GP% for reference display only */
+              g.full_year_gp_percent AS effective_gp_percent,
+
+              /* is_custom: true if any quarter has a custom override */
+              CASE WHEN (o.custom_q1_gp_percent IS NOT NULL OR o.custom_q2_gp_percent IS NOT NULL 
+                         OR o.custom_q3_gp_percent IS NOT NULL OR o.custom_q4_gp_percent IS NOT NULL) 
+                   THEN 1 ELSE 0 END AS is_custom,
+
+              /* GP values using quarter-specific effective GP% */
+              ROUND(b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
+              ROUND(b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
+              ROUND(b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
+              ROUND(b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
               ROUND(
-                (b.quarter_1_sales + b.quarter_2_sales + b.quarter_3_sales + b.quarter_4_sales)
-                * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2
+                b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) +
+                b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) +
+                b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) +
+                b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2
               ) AS total_gp_value
             FROM dfm_dashboards.budget_2026 b
             LEFT JOIN gp g
@@ -246,16 +260,30 @@ class GrossProfitService:
               g.q4_gp_percent,
               g.full_year_gp_percent,
 
-              COALESCE(o.custom_gp_percent, g.full_year_gp_percent) AS effective_gp_percent,
-              CASE WHEN o.custom_gp_percent IS NOT NULL THEN 1 ELSE 0 END AS is_custom,
+              /* Quarter-specific effective GP% with fallback: custom -> historical -> full-year */
+              COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
+              COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
+              COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
+              COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
 
-              ROUND(b.quarter_1_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
-              ROUND(b.quarter_2_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
-              ROUND(b.quarter_3_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
-              ROUND(b.quarter_4_sales * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
+              /* Full-year effective GP% for reference display only */
+              g.full_year_gp_percent AS effective_gp_percent,
+
+              /* is_custom: true if any quarter has a custom override */
+              CASE WHEN (o.custom_q1_gp_percent IS NOT NULL OR o.custom_q2_gp_percent IS NOT NULL 
+                         OR o.custom_q3_gp_percent IS NOT NULL OR o.custom_q4_gp_percent IS NOT NULL) 
+                   THEN 1 ELSE 0 END AS is_custom,
+
+              /* GP values using quarter-specific effective GP% */
+              ROUND(b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
+              ROUND(b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
+              ROUND(b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
+              ROUND(b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
               ROUND(
-                (b.quarter_1_sales + b.quarter_2_sales + b.quarter_3_sales + b.quarter_4_sales)
-                * COALESCE(o.custom_gp_percent, g.full_year_gp_percent),2
+                b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) +
+                b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) +
+                b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) +
+                b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2
               ) AS total_gp_value
             FROM dfm_dashboards.budget_2026 b
             LEFT JOIN gp g
@@ -281,7 +309,7 @@ class GrossProfitService:
     # ------------------------------------------------------------------
     def save_gp_overrides(self, overrides: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Save or update GP% overrides (one per group).
+        Save or update GP% overrides (one per group, with quarter-specific values).
         """
         saved, updated = 0, 0
         for o in overrides:
@@ -294,7 +322,15 @@ class GrossProfitService:
             ).first()
 
             if existing:
-                existing.custom_gp_percent = o["custom_gp_percent"]
+                # Update quarter-specific override fields (including null to clear)
+                if "custom_q1_gp_percent" in o:
+                    existing.custom_q1_gp_percent = o["custom_q1_gp_percent"]
+                if "custom_q2_gp_percent" in o:
+                    existing.custom_q2_gp_percent = o["custom_q2_gp_percent"]
+                if "custom_q3_gp_percent" in o:
+                    existing.custom_q3_gp_percent = o["custom_q3_gp_percent"]
+                if "custom_q4_gp_percent" in o:
+                    existing.custom_q4_gp_percent = o["custom_q4_gp_percent"]
                 existing.updated_at = datetime.utcnow()
                 updated += 1
             else:

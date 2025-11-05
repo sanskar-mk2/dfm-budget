@@ -61,13 +61,22 @@ const hasChanges = computed(() => {
     return false;
 });
 
+// Computed property to check if group has budget
+const hasBudget = computed(() => {
+    return localGroup.has_budget !== undefined && localGroup.has_budget !== 0;
+});
+
 // Computed property to detect if reset should be enabled
 const canReset = computed(() => {
+    // Reset is disabled for sales-only rows
+    if (!hasBudget.value) return false;
     // Reset is enabled if there are custom overrides OR if there are local changes
     return localGroup.is_custom || hasChanges.value;
 });
 
 async function handleSave() {
+    // Prevent saving for sales-only rows
+    if (!hasBudget.value) return;
     saving.value = true;
     try {
         await props.onSave(localGroup);
@@ -123,6 +132,8 @@ function fromPercentInput(v) {
 
 // Handle input for effective GP%
 function updateEffectiveGp(quarter, value) {
+    // Prevent editing for sales-only rows
+    if (!hasBudget.value) return;
     const decimal = fromPercentInput(value);
     quarter.effective_gp_percent = decimal;
     // Recalculate GP value based on the new effective GP%
@@ -138,17 +149,31 @@ const handleCollapse = () => {
 
 <template>
     <div
-        class="card bg-base-100 shadow-xl border border-base-300 transition-all duration-200 hover:shadow-2xl"
+        :class="[
+            'card shadow-xl border transition-all duration-200',
+            hasBudget 
+                ? 'bg-base-100 border-base-300 hover:shadow-2xl' 
+                : 'bg-base-200 border-base-300 opacity-90'
+        ]"
     >
         <div class="card-body">
             <!-- Group Header -->
             <div class="flex items-center justify-between mb-4">
-                <h3 class="card-title text-lg">
-                    {{ localGroup.customer_class }} ›
-                    {{ localGroup.salesperson_name }} ›
-                    {{ localGroup.display_key }}
-                </h3>
                 <div class="flex items-center gap-2">
+                    <h3 class="card-title text-lg">
+                        {{ localGroup.customer_class }} ›
+                        {{ localGroup.salesperson_name }} ›
+                        {{ localGroup.display_key }}
+                    </h3>
+                    <span 
+                        v-if="!hasBudget" 
+                        class="badge badge-warning badge-sm"
+                        title="No budget exists for this group. Historical sales data only - read-only."
+                    >
+                        No Budget
+                    </span>
+                </div>
+                <div class="flex items-center gap-2" v-if="hasBudget">
                     <button
                         class="btn btn-sm btn-ghost"
                         :disabled="saving || !canReset"
@@ -198,8 +223,13 @@ const handleCollapse = () => {
                                     :value="toPercentInput(q.effective_gp_percent)"
                                     @input="(e) => updateEffectiveGp(q, e.target.value)"
                                     @blur="(e) => updateEffectiveGp(q, e.target.value)"
-                                    class="input input-bordered input-sm w-20 text-right font-mono"
+                                    :disabled="!hasBudget"
+                                    :class="[
+                                        'input input-sm w-20 text-right font-mono',
+                                        hasBudget ? 'input-bordered' : 'input-disabled bg-base-300 opacity-60'
+                                    ]"
                                     placeholder="0.0"
+                                    title="Cannot edit - no budget exists for this group"
                                 />
                                 <span class="text-xs opacity-60 ml-1">%</span>
                             </td>

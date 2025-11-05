@@ -96,67 +96,127 @@ class GrossProfitService:
                          IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name),
                          s.derived_customer_class
               ) grp
+            ),
+            budget_rows AS (
+              SELECT
+                b.salesperson_id,
+                b.salesperson_name,
+                b.customer_class,
+                IF(b.customer_class='Hospitality', b.flag, b.customer_name) AS group_key,
+                CASE WHEN b.customer_class LIKE 'Hospitality%' THEN b.brand ELSE NULL END AS brand,
+
+                /* 2026 budgeted sales */
+                b.quarter_1_sales,
+                b.quarter_2_sales,
+                b.quarter_3_sales,
+                b.quarter_4_sales,
+
+                /* 2025 actuals from gp */
+                g.q1_sales_2025,
+                g.q2_sales_2025,
+                g.q3_sales_2025,
+                g.q4_sales_2025,
+
+                g.q1_gp_percent,
+                g.q2_gp_percent,
+                g.q3_gp_percent,
+                g.q4_gp_percent,
+                g.full_year_gp_percent,
+
+                /* Quarter-specific effective GP% with fallback: custom -> historical -> full-year */
+                COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
+                COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
+                COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
+                COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
+
+                /* Full-year effective GP% for reference display only */
+                g.full_year_gp_percent AS effective_gp_percent,
+
+                /* is_custom: true if any quarter has a custom override */
+                CASE WHEN (o.custom_q1_gp_percent IS NOT NULL OR o.custom_q2_gp_percent IS NOT NULL 
+                           OR o.custom_q3_gp_percent IS NOT NULL OR o.custom_q4_gp_percent IS NOT NULL) 
+                     THEN 1 ELSE 0 END AS is_custom,
+
+                /* GP values using quarter-specific effective GP% */
+                ROUND(b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
+                ROUND(b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
+                ROUND(b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
+                ROUND(b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
+                ROUND(
+                  b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) +
+                  b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) +
+                  b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) +
+                  b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2
+                ) AS total_gp_value,
+                1 AS has_budget
+              FROM dfm_dashboards.budget_2026 b
+              LEFT JOIN gp g
+                ON g.salesperson_id = b.salesperson_id
+               AND g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
+               AND g.customer_class = b.customer_class
+              LEFT JOIN gp_ratio_overrides o
+                ON o.salesperson_id = b.salesperson_id
+               AND o.customer_class = b.customer_class
+               AND o.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
+            ),
+            sales_only_rows AS (
+              SELECT
+                g.salesperson_id,
+                COALESCE(sp.salesman_name, CONCAT('Salesperson ', g.salesperson_id)) AS salesperson_name,
+                g.customer_class,
+                g.group_key,
+                NULL AS brand,
+
+                /* 2026 budgeted sales - set to 0 for sales-only rows */
+                0 AS quarter_1_sales,
+                0 AS quarter_2_sales,
+                0 AS quarter_3_sales,
+                0 AS quarter_4_sales,
+
+                /* 2025 actuals from gp */
+                g.q1_sales_2025,
+                g.q2_sales_2025,
+                g.q3_sales_2025,
+                g.q4_sales_2025,
+
+                g.q1_gp_percent,
+                g.q2_gp_percent,
+                g.q3_gp_percent,
+                g.q4_gp_percent,
+                g.full_year_gp_percent,
+
+                /* Quarter-specific effective GP% - no overrides for sales-only rows */
+                COALESCE(g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
+                COALESCE(g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
+                COALESCE(g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
+                COALESCE(g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
+
+                /* Full-year effective GP% for reference display only */
+                g.full_year_gp_percent AS effective_gp_percent,
+
+                /* is_custom: false for sales-only rows */
+                0 AS is_custom,
+
+                /* GP values - all 0 since budget sales are 0 */
+                0 AS q1_gp_value,
+                0 AS q2_gp_value,
+                0 AS q3_gp_value,
+                0 AS q4_gp_value,
+                0 AS total_gp_value,
+                0 AS has_budget
+              FROM gp g
+              LEFT JOIN salesperson_masters sp ON sp.salesman_no = g.salesperson_id
+              WHERE NOT EXISTS (
+                SELECT 1 FROM dfm_dashboards.budget_2026 b
+                WHERE b.salesperson_id = g.salesperson_id
+                  AND b.customer_class = g.customer_class
+                  AND IF(b.customer_class='Hospitality', b.flag, b.customer_name) = g.group_key
+              )
             )
-            SELECT
-              b.salesperson_id,
-              b.salesperson_name,
-              b.customer_class,
-              IF(b.customer_class='Hospitality', b.flag, b.customer_name) AS group_key,
-              CASE WHEN b.customer_class LIKE 'Hospitality%' THEN b.brand ELSE NULL END AS brand,
-
-              /* 2026 budgeted sales */
-              b.quarter_1_sales,
-              b.quarter_2_sales,
-              b.quarter_3_sales,
-              b.quarter_4_sales,
-
-              /* 2025 actuals from gp */
-              g.q1_sales_2025,
-              g.q2_sales_2025,
-              g.q3_sales_2025,
-              g.q4_sales_2025,
-
-              g.q1_gp_percent,
-              g.q2_gp_percent,
-              g.q3_gp_percent,
-              g.q4_gp_percent,
-              g.full_year_gp_percent,
-
-              /* Quarter-specific effective GP% with fallback: custom -> historical -> full-year */
-              COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
-              COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
-              COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
-              COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
-
-              /* Full-year effective GP% for reference display only */
-              g.full_year_gp_percent AS effective_gp_percent,
-
-              /* is_custom: true if any quarter has a custom override */
-              CASE WHEN (o.custom_q1_gp_percent IS NOT NULL OR o.custom_q2_gp_percent IS NOT NULL 
-                         OR o.custom_q3_gp_percent IS NOT NULL OR o.custom_q4_gp_percent IS NOT NULL) 
-                   THEN 1 ELSE 0 END AS is_custom,
-
-              /* GP values using quarter-specific effective GP% */
-              ROUND(b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
-              ROUND(b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
-              ROUND(b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
-              ROUND(b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
-              ROUND(
-                b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) +
-                b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) +
-                b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) +
-                b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2
-              ) AS total_gp_value
-            FROM dfm_dashboards.budget_2026 b
-            LEFT JOIN gp g
-              ON g.salesperson_id = b.salesperson_id
-             AND g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
-             AND g.customer_class = b.customer_class
-            LEFT JOIN gp_ratio_overrides o
-              ON o.salesperson_id = b.salesperson_id
-             AND o.customer_class = b.customer_class
-             AND o.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
-            ORDER BY b.customer_class, b.salesperson_name, group_key;
+            SELECT * FROM budget_rows
+            UNION ALL
+            SELECT * FROM sales_only_rows
+            ORDER BY customer_class, salesperson_name, group_key;
             """
         )
 
@@ -242,70 +302,133 @@ class GrossProfitService:
                          IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name),
                          s.derived_customer_class
               ) grp
+            ),
+            budget_rows AS (
+              SELECT
+                b.salesperson_id,
+                b.salesperson_name,
+                b.customer_class,
+                IF(b.customer_class='Hospitality', b.flag, b.customer_name) AS group_key,
+                CASE WHEN b.customer_class LIKE 'Hospitality%' THEN b.brand ELSE NULL END AS brand,
+
+                /* 2026 budgeted sales */
+                b.quarter_1_sales,
+                b.quarter_2_sales,
+                b.quarter_3_sales,
+                b.quarter_4_sales,
+
+                /* 2025 actuals from gp */
+                g.q1_sales_2025,
+                g.q2_sales_2025,
+                g.q3_sales_2025,
+                g.q4_sales_2025,
+
+                g.q1_gp_percent,
+                g.q2_gp_percent,
+                g.q3_gp_percent,
+                g.q4_gp_percent,
+                g.full_year_gp_percent,
+
+                /* Quarter-specific effective GP% with fallback: custom -> historical -> full-year */
+                COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
+                COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
+                COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
+                COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
+
+                /* Full-year effective GP% for reference display only */
+                g.full_year_gp_percent AS effective_gp_percent,
+
+                /* is_custom: true if any quarter has a custom override */
+                CASE WHEN (o.custom_q1_gp_percent IS NOT NULL OR o.custom_q2_gp_percent IS NOT NULL 
+                           OR o.custom_q3_gp_percent IS NOT NULL OR o.custom_q4_gp_percent IS NOT NULL) 
+                     THEN 1 ELSE 0 END AS is_custom,
+
+                /* GP values using quarter-specific effective GP% */
+                ROUND(b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
+                ROUND(b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
+                ROUND(b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
+                ROUND(b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
+                ROUND(
+                  b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) +
+                  b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) +
+                  b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) +
+                  b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2
+                ) AS total_gp_value,
+                1 AS has_budget
+              FROM dfm_dashboards.budget_2026 b
+              LEFT JOIN gp g
+                ON g.salesperson_id = b.salesperson_id
+               AND g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
+               AND g.customer_class = b.customer_class
+              LEFT JOIN gp_ratio_overrides o
+                ON o.salesperson_id = b.salesperson_id
+               AND o.customer_class = b.customer_class
+               AND o.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
+              WHERE b.salesperson_id = :sid
+                AND b.customer_class = :cc
+                AND IF(b.customer_class='Hospitality', b.flag, b.customer_name) = :gk
+            ),
+            sales_only_rows AS (
+              SELECT
+                g.salesperson_id,
+                COALESCE(sp.salesman_name, CONCAT('Salesperson ', g.salesperson_id)) AS salesperson_name,
+                g.customer_class,
+                g.group_key,
+                NULL AS brand,
+
+                /* 2026 budgeted sales - set to 0 for sales-only rows */
+                0 AS quarter_1_sales,
+                0 AS quarter_2_sales,
+                0 AS quarter_3_sales,
+                0 AS quarter_4_sales,
+
+                /* 2025 actuals from gp */
+                g.q1_sales_2025,
+                g.q2_sales_2025,
+                g.q3_sales_2025,
+                g.q4_sales_2025,
+
+                g.q1_gp_percent,
+                g.q2_gp_percent,
+                g.q3_gp_percent,
+                g.q4_gp_percent,
+                g.full_year_gp_percent,
+
+                /* Quarter-specific effective GP% - no overrides for sales-only rows */
+                COALESCE(g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
+                COALESCE(g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
+                COALESCE(g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
+                COALESCE(g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
+
+                /* Full-year effective GP% for reference display only */
+                g.full_year_gp_percent AS effective_gp_percent,
+
+                /* is_custom: false for sales-only rows */
+                0 AS is_custom,
+
+                /* GP values - all 0 since budget sales are 0 */
+                0 AS q1_gp_value,
+                0 AS q2_gp_value,
+                0 AS q3_gp_value,
+                0 AS q4_gp_value,
+                0 AS total_gp_value,
+                0 AS has_budget
+              FROM gp g
+              LEFT JOIN salesperson_masters sp ON sp.salesman_no = g.salesperson_id
+              WHERE g.salesperson_id = :sid
+                AND g.customer_class = :cc
+                AND g.group_key = :gk
+                AND NOT EXISTS (
+                  SELECT 1 FROM dfm_dashboards.budget_2026 b
+                  WHERE b.salesperson_id = g.salesperson_id
+                    AND b.customer_class = g.customer_class
+                    AND IF(b.customer_class='Hospitality', b.flag, b.customer_name) = g.group_key
+                )
             )
-            SELECT
-              b.salesperson_id,
-              b.salesperson_name,
-              b.customer_class,
-              IF(b.customer_class='Hospitality', b.flag, b.customer_name) AS group_key,
-              CASE WHEN b.customer_class LIKE 'Hospitality%' THEN b.brand ELSE NULL END AS brand,
-
-              /* 2026 budgeted sales */
-              b.quarter_1_sales,
-              b.quarter_2_sales,
-              b.quarter_3_sales,
-              b.quarter_4_sales,
-
-              /* 2025 actuals from gp */
-              g.q1_sales_2025,
-              g.q2_sales_2025,
-              g.q3_sales_2025,
-              g.q4_sales_2025,
-
-              g.q1_gp_percent,
-              g.q2_gp_percent,
-              g.q3_gp_percent,
-              g.q4_gp_percent,
-              g.full_year_gp_percent,
-
-              /* Quarter-specific effective GP% with fallback: custom -> historical -> full-year */
-              COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) AS q1_effective_gp_percent,
-              COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) AS q2_effective_gp_percent,
-              COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) AS q3_effective_gp_percent,
-              COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent) AS q4_effective_gp_percent,
-
-              /* Full-year effective GP% for reference display only */
-              g.full_year_gp_percent AS effective_gp_percent,
-
-              /* is_custom: true if any quarter has a custom override */
-              CASE WHEN (o.custom_q1_gp_percent IS NOT NULL OR o.custom_q2_gp_percent IS NOT NULL 
-                         OR o.custom_q3_gp_percent IS NOT NULL OR o.custom_q4_gp_percent IS NOT NULL) 
-                   THEN 1 ELSE 0 END AS is_custom,
-
-              /* GP values using quarter-specific effective GP% */
-              ROUND(b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent),2) AS q1_gp_value,
-              ROUND(b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent),2) AS q2_gp_value,
-              ROUND(b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent),2) AS q3_gp_value,
-              ROUND(b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2) AS q4_gp_value,
-              ROUND(
-                b.quarter_1_sales * COALESCE(o.custom_q1_gp_percent, g.q1_gp_percent, g.full_year_gp_percent) +
-                b.quarter_2_sales * COALESCE(o.custom_q2_gp_percent, g.q2_gp_percent, g.full_year_gp_percent) +
-                b.quarter_3_sales * COALESCE(o.custom_q3_gp_percent, g.q3_gp_percent, g.full_year_gp_percent) +
-                b.quarter_4_sales * COALESCE(o.custom_q4_gp_percent, g.q4_gp_percent, g.full_year_gp_percent),2
-              ) AS total_gp_value
-            FROM dfm_dashboards.budget_2026 b
-            LEFT JOIN gp g
-              ON g.salesperson_id = b.salesperson_id
-             AND g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
-             AND g.customer_class = b.customer_class
-            LEFT JOIN gp_ratio_overrides o
-              ON o.salesperson_id = b.salesperson_id
-             AND o.customer_class = b.customer_class
-             AND o.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
-            WHERE b.salesperson_id = :sid
-              AND b.customer_class = :cc
-              AND IF(b.customer_class='Hospitality', b.flag, b.customer_name) = :gk
-            ORDER BY b.customer_class, b.salesperson_name, group_key;
+            SELECT * FROM budget_rows
+            UNION ALL
+            SELECT * FROM sales_only_rows
+            ORDER BY customer_class, salesperson_name, group_key;
             """
         )
 

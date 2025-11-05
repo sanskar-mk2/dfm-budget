@@ -23,6 +23,7 @@ export function useGrossProfitData() {
               : r.group_key,
           effective_gp_percent: r.effective_gp_percent, // Full-year reference value
           is_custom: r.is_custom,
+          has_budget: r.has_budget !== undefined ? r.has_budget : 1, // Default to 1 if not provided
           quarters: [
             { 
               label: "Q1", 

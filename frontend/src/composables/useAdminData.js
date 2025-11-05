@@ -234,27 +234,30 @@ export function useAdminData() {
                 (p) => p.salesperson_id === id
             );
 
-            // Track which budgets have been matched with sales
-            // Use the same matching logic: brand, flag, customer_name
-            const matchedBudgetKeys = new Set();
+            // Track which budgets have been matched with sales by their ID
+            const matchedBudgetIds = new Set();
 
             // Map sales data to include budget information
             const salesData = sales.data.map((s) => {
-                const b = budget.data.find(
+                // Find all matching budgets (there might be multiple)
+                const matchingBudgets = budget.data.filter(
                     (x) =>
                         x.brand === s.brand &&
                         x.flag === s.flag &&
-                        x.customer_name === s.customer_name
+                        x.customer_name === s.customer_name &&
+                        !matchedBudgetIds.has(x.id) // Only use budgets not already matched
                 );
 
-                // Mark this budget as matched if found
-                // Use the same key format as matching logic (brand, flag, customer_name)
-                if (b) {
-                    const budgetKey = `${b.brand || "null"}_${
-                        b.flag || "null"
-                    }_${b.customer_name || "null"}`;
-                    matchedBudgetKeys.add(budgetKey);
-                }
+                // Sum all matching budgets
+                const totalQ1 = matchingBudgets.reduce((sum, b) => sum + (parseFloat(b.quarter_1_sales) || 0), 0);
+                const totalQ2 = matchingBudgets.reduce((sum, b) => sum + (parseFloat(b.quarter_2_sales) || 0), 0);
+                const totalQ3 = matchingBudgets.reduce((sum, b) => sum + (parseFloat(b.quarter_3_sales) || 0), 0);
+                const totalQ4 = matchingBudgets.reduce((sum, b) => sum + (parseFloat(b.quarter_4_sales) || 0), 0);
+
+                // Mark all matching budgets as matched by their ID
+                matchingBudgets.forEach(b => {
+                    if (b.id) matchedBudgetIds.add(b.id);
+                });
 
                 const totalSales =
                     (parseFloat(s.q1_sales) || 0) +
@@ -262,12 +265,7 @@ export function useAdminData() {
                     (parseFloat(s.q3_sales) || 0) +
                     (parseFloat(s.q4_sales) || 0) +
                     (parseFloat(s.q4_orders) || 0);
-                const totalBudget = b
-                    ? (parseFloat(b.quarter_1_sales) || 0) +
-                      (parseFloat(b.quarter_2_sales) || 0) +
-                      (parseFloat(b.quarter_3_sales) || 0) +
-                      (parseFloat(b.quarter_4_sales) || 0)
-                    : 0;
+                const totalBudget = totalQ1 + totalQ2 + totalQ3 + totalQ4;
                 const growthPercent =
                     totalSales !== 0 &&
                     !isNaN(totalSales) &&
@@ -281,18 +279,10 @@ export function useAdminData() {
                     salesperson_name:
                         salespersonInfo?.salesperson_name || "Unknown",
                     role: salespersonInfo?.role || "Unknown",
-                    q1_budget: b
-                        ? formatCurrencyForCSV(b.quarter_1_sales)
-                        : "0.00",
-                    q2_budget: b
-                        ? formatCurrencyForCSV(b.quarter_2_sales)
-                        : "0.00",
-                    q3_budget: b
-                        ? formatCurrencyForCSV(b.quarter_3_sales)
-                        : "0.00",
-                    q4_budget: b
-                        ? formatCurrencyForCSV(b.quarter_4_sales)
-                        : "0.00",
+                    q1_budget: formatCurrencyForCSV(totalQ1),
+                    q2_budget: formatCurrencyForCSV(totalQ2),
+                    q3_budget: formatCurrencyForCSV(totalQ3),
+                    q4_budget: formatCurrencyForCSV(totalQ4),
                     open_2026: formatCurrencyForCSV(s.open_2026),
                     growth_percent: isNaN(growthPercent)
                         ? "0.00"
@@ -300,20 +290,14 @@ export function useAdminData() {
                 };
             });
 
-            // Find custom budgets that don't have matching sales
-            const customBudgets = budget.data
+            // Find all budgets that don't have matching sales (both custom and non-custom)
+            const unmatchedBudgets = budget.data
                 .filter((b) => {
-                    if (!b.is_custom) return false;
-
-                    // Check if this budget was already matched with a sale
-                    // Use the same key format as matching logic (brand, flag, customer_name)
-                    const budgetKey = `${b.brand || "null"}_${
-                        b.flag || "null"
-                    }_${b.customer_name || "null"}`;
-                    return !matchedBudgetKeys.has(budgetKey);
+                    // Check if this budget was already matched with a sale by ID
+                    return !matchedBudgetIds.has(b.id);
                 })
                 .map((b) => {
-                    // Convert custom budget to CSV format with zero sales values
+                    // Convert unmatched budget to CSV format with zero sales values
                     const totalBudget =
                         (parseFloat(b.quarter_1_sales) || 0) +
                         (parseFloat(b.quarter_2_sales) || 0) +
@@ -353,8 +337,8 @@ export function useAdminData() {
                     };
                 });
 
-            // Combine sales data with custom budgets
-            return [...salesData, ...customBudgets];
+            // Combine sales data with unmatched budgets
+            return [...salesData, ...unmatchedBudgets];
         } catch (err) {
             console.error(err);
             return [];

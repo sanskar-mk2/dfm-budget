@@ -71,7 +71,6 @@ class DivisionService:
                      ELSE NULL END AS brand,
                 b.quarter_1_sales, b.quarter_2_sales, b.quarter_3_sales, b.quarter_4_sales
               FROM dfm_dashboards.budget_2026 b
-              WHERE b.is_custom=0
             ),
             collapsed_budget AS (        -- collapse per salesperson + group_key
               SELECT
@@ -93,25 +92,25 @@ class DivisionService:
             SELECT
               b.salesperson_id, b.salesperson_name, b.customer_class, b.group_key, b.brand,
               d.div_no AS item_division, d.div_desc AS division_name,
-              COALESCE(o.custom_ratio, r.division_ratio_2025) AS effective_ratio,
+              COALESCE(o.custom_ratio, r.division_ratio_2025, 0) AS effective_ratio,
               CASE WHEN o.custom_ratio IS NOT NULL THEN 1 ELSE 0 END AS is_custom,
-              ROUND(b.q1_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q1_allocated,
-              ROUND(b.q2_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q2_allocated,
-              ROUND(b.q3_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q3_allocated,
-              ROUND(b.q4_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q4_allocated,
-              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS total_allocated,
-              r.division_ratio_2025,
+              ROUND(b.q1_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q1_allocated,
+              ROUND(b.q2_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q2_allocated,
+              ROUND(b.q3_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q3_allocated,
+              ROUND(b.q4_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q4_allocated,
+              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS total_allocated,
+              COALESCE(r.division_ratio_2025, 0) AS division_ratio_2025,
               gs.total_sales AS total_2025_sales
             FROM collapsed_budget b
-            JOIN ratios r
+            CROSS JOIN divisions_dedup d
+            LEFT JOIN ratios r
               ON r.group_key=b.group_key
              AND r.customer_class=b.customer_class
-            JOIN grouped_sales gs
+             AND r.item_division=d.div_no
+            LEFT JOIN grouped_sales gs
               ON gs.group_key=r.group_key
              AND gs.customer_class=r.customer_class
              AND gs.item_division=r.item_division
-            JOIN divisions_dedup d
-              ON d.div_no=r.item_division
             LEFT JOIN division_ratio_overrides o
               ON o.salesperson_id=b.salesperson_id
              AND o.customer_class=b.customer_class
@@ -339,7 +338,6 @@ class DivisionService:
                      ELSE NULL END AS brand,
                 b.quarter_1_sales, b.quarter_2_sales, b.quarter_3_sales, b.quarter_4_sales
               FROM dfm_dashboards.budget_2026 b
-              WHERE b.is_custom=0
             ),
             collapsed_budget AS (
               SELECT
@@ -361,25 +359,25 @@ class DivisionService:
             SELECT
               b.salesperson_id, b.salesperson_name, b.customer_class, b.group_key, b.brand,
               d.div_no AS item_division, d.div_desc AS division_name,
-              COALESCE(o.custom_ratio, r.division_ratio_2025) AS effective_ratio,
+              COALESCE(o.custom_ratio, r.division_ratio_2025, 0) AS effective_ratio,
               CASE WHEN o.custom_ratio IS NOT NULL THEN 1 ELSE 0 END AS is_custom,
-              ROUND(b.q1_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q1_allocated,
-              ROUND(b.q2_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q2_allocated,
-              ROUND(b.q3_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q3_allocated,
-              ROUND(b.q4_total * COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS q4_allocated,
-              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(o.custom_ratio, r.division_ratio_2025), 2) AS total_allocated,
-              r.division_ratio_2025,
+              ROUND(b.q1_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q1_allocated,
+              ROUND(b.q2_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q2_allocated,
+              ROUND(b.q3_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q3_allocated,
+              ROUND(b.q4_total * COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS q4_allocated,
+              ROUND((b.q1_total+b.q2_total+b.q3_total+b.q4_total)*COALESCE(o.custom_ratio, r.division_ratio_2025, 0), 2) AS total_allocated,
+              COALESCE(r.division_ratio_2025, 0) AS division_ratio_2025,
               gs.total_sales AS total_2025_sales
             FROM collapsed_budget b
-            JOIN ratios r
+            CROSS JOIN divisions_dedup d
+            LEFT JOIN ratios r
               ON r.group_key=b.group_key
              AND r.customer_class=b.customer_class
-            JOIN grouped_sales gs
+             AND r.item_division=d.div_no
+            LEFT JOIN grouped_sales gs
               ON gs.group_key=r.group_key
              AND gs.customer_class=r.customer_class
              AND gs.item_division=r.item_division
-            JOIN divisions_dedup d
-              ON d.div_no=r.item_division
             LEFT JOIN division_ratio_overrides o
               ON o.salesperson_id=b.salesperson_id
              AND o.customer_class=b.customer_class

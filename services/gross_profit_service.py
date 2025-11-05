@@ -22,6 +22,7 @@ class GrossProfitService:
             """
             WITH gp AS (
               SELECT
+                grp.salesperson_id,
                 grp.group_key,
                 grp.customer_class,
                 /* 2025 actual quarterly sales */
@@ -66,6 +67,7 @@ class GrossProfitService:
                 ) AS full_year_gp_percent
               FROM (
                 SELECT
+                  s.salesperson AS salesperson_id,
                   IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name) AS group_key,
                   s.derived_customer_class AS customer_class,
                   SUM(IF(MONTH(s.period) BETWEEN 1 AND 3, s.ext_sales, 0)) AS q1_sales,
@@ -85,11 +87,13 @@ class GrossProfitService:
                   HAVING SUM(so.qty)>=0 AND SUM(so.is_warranty='yes')=0
                 ) vo ON vo.order_no = s.order_no
                 WHERE YEAR(s.period)=2025
+                  AND s.salesperson IS NOT NULL
                   AND (
                     (s.derived_customer_class='Hospitality' AND s.flag IS NOT NULL AND s.flag<>'')
                     OR (s.derived_customer_class<>'Hospitality' AND s.customer_name IS NOT NULL AND s.customer_name<>'')
                   )
-                GROUP BY IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name),
+                GROUP BY s.salesperson,
+                         IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name),
                          s.derived_customer_class
               ) grp
             )
@@ -145,13 +149,13 @@ class GrossProfitService:
               ) AS total_gp_value
             FROM dfm_dashboards.budget_2026 b
             LEFT JOIN gp g
-              ON g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
+              ON g.salesperson_id = b.salesperson_id
+             AND g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
              AND g.customer_class = b.customer_class
             LEFT JOIN gp_ratio_overrides o
               ON o.salesperson_id = b.salesperson_id
              AND o.customer_class = b.customer_class
              AND o.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
-            WHERE b.is_custom = 0
             ORDER BY b.customer_class, b.salesperson_name, group_key;
             """
         )
@@ -167,6 +171,7 @@ class GrossProfitService:
             """
             WITH gp AS (
               SELECT
+                grp.salesperson_id,
                 grp.group_key,
                 grp.customer_class,
                 /* 2025 actual quarterly sales */
@@ -211,6 +216,7 @@ class GrossProfitService:
                 ) AS full_year_gp_percent
               FROM (
                 SELECT
+                  s.salesperson AS salesperson_id,
                   IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name) AS group_key,
                   s.derived_customer_class AS customer_class,
                   SUM(IF(MONTH(s.period) BETWEEN 1 AND 3, s.ext_sales, 0)) AS q1_sales,
@@ -230,8 +236,10 @@ class GrossProfitService:
                   HAVING SUM(so.qty)>=0 AND SUM(so.is_warranty='yes')=0
                 ) vo ON vo.order_no = s.order_no
                 WHERE YEAR(s.period)=2025
+                  AND s.salesperson IS NOT NULL
                   AND (s.derived_customer_class=:cc AND IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name)=:gk)
-                GROUP BY IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name),
+                GROUP BY s.salesperson,
+                         IF(s.derived_customer_class='Hospitality', s.flag, s.customer_name),
                          s.derived_customer_class
               ) grp
             )
@@ -287,14 +295,14 @@ class GrossProfitService:
               ) AS total_gp_value
             FROM dfm_dashboards.budget_2026 b
             LEFT JOIN gp g
-              ON g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
+              ON g.salesperson_id = b.salesperson_id
+             AND g.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
              AND g.customer_class = b.customer_class
             LEFT JOIN gp_ratio_overrides o
               ON o.salesperson_id = b.salesperson_id
              AND o.customer_class = b.customer_class
              AND o.group_key = IF(b.customer_class='Hospitality', b.flag, b.customer_name)
-            WHERE b.is_custom = 0
-              AND b.salesperson_id = :sid
+            WHERE b.salesperson_id = :sid
               AND b.customer_class = :cc
               AND IF(b.customer_class='Hospitality', b.flag, b.customer_name) = :gk
             ORDER BY b.customer_class, b.salesperson_name, group_key;

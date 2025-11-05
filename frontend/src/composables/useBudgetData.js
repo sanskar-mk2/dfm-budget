@@ -30,7 +30,18 @@ export function useBudgetData() {
         const brand = item.brand || "null";
         const flag = item.flag || "null";
         const customerName = item.customer_name || "null";
-        const customerClass = item.customer_class || item.derived_customer_class || "null";
+        
+        // For hospitality items, normalize customer_class to "Hospitality"
+        // This ensures sales items (with derived_customer_class = None) match budget items (with customer_class = "Hospitality")
+        let customerClass = item.customer_class || item.derived_customer_class;
+        
+        // If it's a hospitality user and the item has brand/flag (hospitality items), use "Hospitality" as customer_class
+        if (isHospitality.value && brand !== "null" && flag !== "null") {
+            customerClass = customerClass || "Hospitality";
+        }
+        
+        customerClass = customerClass || "null";
+        
         return `${brand}_${flag}_${customerName}_${customerClass}`;
     };
 

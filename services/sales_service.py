@@ -173,7 +173,7 @@ class SalesService:
                     "flag": flag,
                     "brand": brand,
                     "customer_name": None,
-                    "derived_customer_class": None,
+                    "derived_customer_class": "Hospitality",
                     "q1_sales": quarterly.get("q1_sales", 0),
                     "q2_sales": quarterly.get("q2_sales", 0),
                     "q3_sales": quarterly.get("q3_sales", 0),

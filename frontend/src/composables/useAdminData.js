@@ -86,7 +86,8 @@ export function useAdminData() {
             }
         );
 
-        t.total_sales = t.q1_sales + t.q2_sales + t.q3_sales + t.q4_sales + t.q4_orders;
+        t.total_sales =
+            t.q1_sales + t.q2_sales + t.q3_sales + t.q4_sales + t.q4_orders;
         t.total_budget = t.q1_budget + t.q2_budget + t.q3_budget + t.q4_budget;
         t.growth_percent =
             t.total_sales !== 0
@@ -148,9 +149,12 @@ export function useAdminData() {
         const q4Sales = sumField(rows, "q4_sales");
         const q4Orders = sumField(rows, "q4_orders");
         const totalSalesFromField = sumField(rows, "total_sales");
-        const computedTotalSales = q1Sales + q2Sales + q3Sales + q4Sales + q4Orders;
+        const computedTotalSales =
+            q1Sales + q2Sales + q3Sales + q4Sales + q4Orders;
         const totalSales =
-            totalSalesFromField !== 0 ? totalSalesFromField : computedTotalSales;
+            totalSalesFromField !== 0
+                ? totalSalesFromField
+                : computedTotalSales;
         const zeroPercSales = sumField(rows, [
             "zero_perc_sales_total",
             "zero_perc_sales",
@@ -160,10 +164,13 @@ export function useAdminData() {
         const q2Budget = sumField(rows, "q2_budget");
         const q3Budget = sumField(rows, "q3_budget");
         const q4Budget = sumField(rows, "q4_budget");
-        const totalBudgetFromQuarters = q1Budget + q2Budget + q3Budget + q4Budget;
+        const totalBudgetFromQuarters =
+            q1Budget + q2Budget + q3Budget + q4Budget;
         const totalBudgetField = sumField(rows, "total_budget");
         const totalBudget =
-            totalBudgetFromQuarters !== 0 ? totalBudgetFromQuarters : totalBudgetField;
+            totalBudgetFromQuarters !== 0
+                ? totalBudgetFromQuarters
+                : totalBudgetField;
 
         const zeroPercPercentValue =
             totalSales !== 0 ? (zeroPercSales / totalSales) * 100 : 0;
@@ -227,13 +234,28 @@ export function useAdminData() {
                 (p) => p.salesperson_id === id
             );
 
-            return sales.data.map((s) => {
+            // Track which budgets have been matched with sales
+            // Use the same matching logic: brand, flag, customer_name
+            const matchedBudgetKeys = new Set();
+
+            // Map sales data to include budget information
+            const salesData = sales.data.map((s) => {
                 const b = budget.data.find(
                     (x) =>
                         x.brand === s.brand &&
                         x.flag === s.flag &&
                         x.customer_name === s.customer_name
                 );
+
+                // Mark this budget as matched if found
+                // Use the same key format as matching logic (brand, flag, customer_name)
+                if (b) {
+                    const budgetKey = `${b.brand || "null"}_${
+                        b.flag || "null"
+                    }_${b.customer_name || "null"}`;
+                    matchedBudgetKeys.add(budgetKey);
+                }
+
                 const totalSales =
                     (parseFloat(s.q1_sales) || 0) +
                     (parseFloat(s.q2_sales) || 0) +
@@ -277,6 +299,62 @@ export function useAdminData() {
                         : growthPercent.toFixed(2),
                 };
             });
+
+            // Find custom budgets that don't have matching sales
+            const customBudgets = budget.data
+                .filter((b) => {
+                    if (!b.is_custom) return false;
+
+                    // Check if this budget was already matched with a sale
+                    // Use the same key format as matching logic (brand, flag, customer_name)
+                    const budgetKey = `${b.brand || "null"}_${
+                        b.flag || "null"
+                    }_${b.customer_name || "null"}`;
+                    return !matchedBudgetKeys.has(budgetKey);
+                })
+                .map((b) => {
+                    // Convert custom budget to CSV format with zero sales values
+                    const totalBudget =
+                        (parseFloat(b.quarter_1_sales) || 0) +
+                        (parseFloat(b.quarter_2_sales) || 0) +
+                        (parseFloat(b.quarter_3_sales) || 0) +
+                        (parseFloat(b.quarter_4_sales) || 0);
+
+                    // Determine if this is hospitality based on customer_class
+                    const isHosp =
+                        b.customer_class &&
+                        b.customer_class
+                            .toLowerCase()
+                            .startsWith("hospitality");
+
+                    return {
+                        salesperson_id: id,
+                        salesperson_name:
+                            salespersonInfo?.salesperson_name || "Unknown",
+                        role: salespersonInfo?.role || "Unknown",
+                        brand: b.brand || "",
+                        flag: b.flag || "",
+                        derived_customer_class: b.customer_class || "",
+                        customer_name: b.customer_name || "",
+                        q1_sales: "0.00",
+                        q2_sales: "0.00",
+                        q3_sales: "0.00",
+                        q4_sales: "0.00",
+                        q4_orders: "0.00",
+                        total_sales: "0.00",
+                        zero_perc_sales_total: "0.00",
+                        zero_perc_sales_percent: "0.00",
+                        open_2026: "0.00",
+                        q1_budget: formatCurrencyForCSV(b.quarter_1_sales),
+                        q2_budget: formatCurrencyForCSV(b.quarter_2_sales),
+                        q3_budget: formatCurrencyForCSV(b.quarter_3_sales),
+                        q4_budget: formatCurrencyForCSV(b.quarter_4_sales),
+                        growth_percent: totalBudget > 0 ? "100.00" : "0.00",
+                    };
+                });
+
+            // Combine sales data with custom budgets
+            return [...salesData, ...customBudgets];
         } catch (err) {
             console.error(err);
             return [];

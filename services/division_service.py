@@ -333,7 +333,7 @@ class DivisionService:
             q3_start = date(2025, 7, 1)
             q4_start = date(2025, 10, 1)
             q4_end = date(2026, 1, 1)
-            
+
             if period >= q1_start and period < q2_start:
                 quarter = "q1"
             elif period >= q2_start and period < q3_start:
@@ -485,7 +485,8 @@ class DivisionService:
                    THEN NULLIF(TRIM(s.flag),'')
                    ELSE NULLIF(TRIM(s.customer_name),'')
               END AS group_key,
-              NULL AS brand
+              CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN MAX(NULLIF(TRIM(s.brand),''))
+                   ELSE NULL END AS brand
             FROM sales_budget_2026 s
             LEFT JOIN salesperson_masters sp ON sp.salesman_no = s.salesperson
             WHERE s.period >= '2025-01-01' AND s.period < '2026-01-01'
@@ -508,12 +509,12 @@ class DivisionService:
         )
         result = self.db.exec(query)
         return [
-                {
-                    "salesperson_id": row.salesperson_id,
-                    "salesperson_name": row.salesperson_name,
-                    "customer_class": row.customer_class,
-                    "group_key": row.group_key,
-                    "brand": row.brand,
+            {
+                "salesperson_id": row.salesperson_id,
+                "salesperson_name": row.salesperson_name,
+                "customer_class": row.customer_class,
+                "group_key": row.group_key,
+                "brand": row.brand,
             }
             for row in result
         ]
@@ -718,9 +719,11 @@ class DivisionService:
                     )
                     # Total GP$ from actual total sales
                     total_gp_value = (
-                        round(total_2025_sales * (gp_percent or 0), 2) if gp_percent and total_2025_sales > 0 else 0.0
+                        round(total_2025_sales * (gp_percent or 0), 2)
+                        if gp_percent and total_2025_sales > 0
+                        else 0.0
                     )
-                    
+
                     # Get quarterly sales and GP% for display
                     q1_sales_display = q1_sales
                     q2_sales_display = q2_sales
@@ -886,9 +889,11 @@ class DivisionService:
                     )
                     # Total GP$ from actual total sales
                     total_gp_value = (
-                        round(total_2025_sales * (gp_percent or 0), 2) if gp_percent and total_2025_sales > 0 else 0.0
+                        round(total_2025_sales * (gp_percent or 0), 2)
+                        if gp_percent and total_2025_sales > 0
+                        else 0.0
                     )
-                    
+
                     # Get quarterly sales and GP% for display
                     q1_sales_display = q1_sales
                     q2_sales_display = q2_sales
@@ -949,7 +954,7 @@ class DivisionService:
                 x["group_key"] or "",
                 x["item_division"],
             )
-            )
+        )
 
         return division_data
 
@@ -1161,7 +1166,7 @@ class DivisionService:
                     salesperson_id_val,
                     customer_class_val,
                     group_key_val,
-                item_division,
+                    item_division,
                 )
                 custom_ratio = ratio_overrides.get(override_key)
 
@@ -1271,9 +1276,11 @@ class DivisionService:
                     )
                     # Total GP$ from actual total sales
                     total_gp_value = (
-                        round(total_2025_sales * (gp_percent or 0), 2) if gp_percent and total_2025_sales > 0 else 0.0
+                        round(total_2025_sales * (gp_percent or 0), 2)
+                        if gp_percent and total_2025_sales > 0
+                        else 0.0
                     )
-                    
+
                     # Get quarterly sales and GP% for display
                     q1_sales_display = q1_sales
                     q2_sales_display = q2_sales

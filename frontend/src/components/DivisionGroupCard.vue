@@ -28,6 +28,10 @@ watch(
 );
 
 // Computed properties
+const hasBudget = computed(() => {
+    return props.group.has_budget !== undefined && props.group.has_budget !== false;
+});
+
 const totalRatio = computed(() => {
     return localDivisions.value.reduce(
         (sum, div) => sum + div.effective_ratio,
@@ -103,15 +107,21 @@ const normalizeRatios = (changedIndex, newRatio) => {
 
 // Event handlers
 const handleRatioChange = (divisionIndex, newRatio) => {
+    // Prevent editing for sales-only rows
+    if (!hasBudget.value) return;
     normalizeRatios(divisionIndex, newRatio);
 };
 
 const handleLockToggle = (divisionIndex) => {
+    // Prevent editing for sales-only rows
+    if (!hasBudget.value) return;
     localDivisions.value[divisionIndex].locked =
         !localDivisions.value[divisionIndex].locked;
 };
 
 const handleSave = async () => {
+    // Prevent saving for sales-only rows
+    if (!hasBudget.value) return;
     try {
         await emit("save-ratios", props.group.group_key, localDivisions.value);
     } catch (error) {
@@ -121,6 +131,8 @@ const handleSave = async () => {
 };
 
 const handleReset = async () => {
+    // Prevent resetting for sales-only rows
+    if (!hasBudget.value) return;
     try {
         await emit(
             "reset-group",
@@ -140,7 +152,14 @@ const handleCollapse = () => {
 </script>
 
 <template>
-    <div class="card bg-base-100 shadow-xl border border-base-300">
+    <div
+        :class="[
+            'card shadow-xl border transition-all duration-200',
+            hasBudget 
+                ? 'bg-base-100 border-base-300 hover:shadow-2xl' 
+                : 'bg-base-200 border-base-300 opacity-90'
+        ]"
+    >
         <div class="card-body">
             <!-- Group Header -->
             <div class="flex items-center justify-between mb-4">
@@ -148,11 +167,17 @@ const handleCollapse = () => {
                     <h3 class="card-title text-lg">
                         {{ groupLabel }}
                     </h3>
+                    <span v-if="!hasBudget" 
+                        class="badge badge-warning badge-sm"
+                        title="No budget exists for this group. Historical sales data only - read-only."
+                    >
+                        No Budget
+                    </span>
                     <span v-if="group.usesDefaultRatios" class="badge badge-warning badge-sm">
                         Missing historical data, using average ratios
                     </span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2" v-if="hasBudget">
                     <button
                         @click="handleReset"
                         class="btn btn-ghost btn-sm"
@@ -175,7 +200,7 @@ const handleCollapse = () => {
             <!-- Division Table -->
             <DivisionTable
                 :divisions="localDivisions"
-                :readonly="false"
+                :readonly="!hasBudget"
                 @ratio-change="handleRatioChange"
                 @lock-toggle="handleLockToggle"
             />

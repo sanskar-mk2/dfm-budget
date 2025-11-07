@@ -87,6 +87,20 @@ const prepareDataForCSV = () => {
                     effective_ratio: division.effective_ratio != null ? ((division.effective_ratio * 100).toFixed(2) + "%") : "",
                     is_custom: division.is_custom ? "Yes" : "No",
                     total_2025_sales: formatCurrencyForCSV(division.total_2025_sales || 0),
+                    q1_sales: formatCurrencyForCSV(division.q1_sales || 0),
+                    q2_sales: formatCurrencyForCSV(division.q2_sales || 0),
+                    q3_sales: formatCurrencyForCSV(division.q3_sales || 0),
+                    q4_sales: formatCurrencyForCSV(division.q4_sales || 0),
+                    gp_percent: division.gp_percent != null ? ((division.gp_percent * 100).toFixed(1) + "%") : "",
+                    q1_gp_percent: division.q1_gp_percent != null ? ((division.q1_gp_percent * 100).toFixed(1) + "%") : "",
+                    q2_gp_percent: division.q2_gp_percent != null ? ((division.q2_gp_percent * 100).toFixed(1) + "%") : "",
+                    q3_gp_percent: division.q3_gp_percent != null ? ((division.q3_gp_percent * 100).toFixed(1) + "%") : "",
+                    q4_gp_percent: division.q4_gp_percent != null ? ((division.q4_gp_percent * 100).toFixed(1) + "%") : "",
+                    total_gp_value: formatCurrencyForCSV(division.total_gp_value || 0),
+                    q1_gp_value: formatCurrencyForCSV(division.q1_gp_value || 0),
+                    q2_gp_value: formatCurrencyForCSV(division.q2_gp_value || 0),
+                    q3_gp_value: formatCurrencyForCSV(division.q3_gp_value || 0),
+                    q4_gp_value: formatCurrencyForCSV(division.q4_gp_value || 0),
                     q1_allocated: formatCurrencyForCSV(division.q1_allocated || 0),
                     q2_allocated: formatCurrencyForCSV(division.q2_allocated || 0),
                     q3_allocated: formatCurrencyForCSV(division.q3_allocated || 0),
@@ -109,6 +123,8 @@ const prepareDataForCSV = () => {
                 effective_ratio: "",
                 is_custom: "",
                 total_2025_sales: "",
+                gp_percent: "",
+                total_gp_value: "",
                 q1_allocated: "",
                 q2_allocated: "",
                 q3_allocated: "",
@@ -134,6 +150,20 @@ const getCSVHeaders = () => [
     { key: 'effective_ratio', label: 'Effective Ratio' },
     { key: 'is_custom', label: 'Is Custom' },
     { key: 'total_2025_sales', label: 'Total 2025 Sales' },
+    { key: 'q1_sales', label: 'Q1 Sales' },
+    { key: 'q2_sales', label: 'Q2 Sales' },
+    { key: 'q3_sales', label: 'Q3 Sales' },
+    { key: 'q4_sales', label: 'Q4 Sales' },
+    { key: 'gp_percent', label: 'GP%' },
+    { key: 'q1_gp_percent', label: 'Q1 GP%' },
+    { key: 'q2_gp_percent', label: 'Q2 GP%' },
+    { key: 'q3_gp_percent', label: 'Q3 GP%' },
+    { key: 'q4_gp_percent', label: 'Q4 GP%' },
+    { key: 'total_gp_value', label: 'GP $' },
+    { key: 'q1_gp_value', label: 'Q1 GP' },
+    { key: 'q2_gp_value', label: 'Q2 GP' },
+    { key: 'q3_gp_value', label: 'Q3 GP' },
+    { key: 'q4_gp_value', label: 'Q4 GP' },
     { key: 'q1_allocated', label: 'Q1 Allocated' },
     { key: 'q2_allocated', label: 'Q2 Allocated' },
     { key: 'q3_allocated', label: 'Q3 Allocated' },
@@ -185,27 +215,66 @@ const makeGroupKey = (group) =>
     `${group.salesperson_id}-${group.customer_class}-${group.group_key}`;
 
 const computeSummary = (group) => {
-    return group.divisions.reduce(
+    const summary = group.divisions.reduce(
         (acc, division) => {
             acc.totalRatio += division.effective_ratio || 0;
             acc.totalSales += division.total_2025_sales || 0;
+            acc.q1Sales += division.q1_sales || 0;
+            acc.q2Sales += division.q2_sales || 0;
+            acc.q3Sales += division.q3_sales || 0;
+            acc.q4Sales += division.q4_sales || 0;
             acc.q1 += division.q1_allocated || 0;
             acc.q2 += division.q2_allocated || 0;
             acc.q3 += division.q3_allocated || 0;
             acc.q4 += division.q4_allocated || 0;
             acc.grandTotal += division.total_allocated || 0;
+            acc.totalGp += division.total_gp_value || 0;
+            acc.q1Gp += division.q1_gp_value || 0;
+            acc.q2Gp += division.q2_gp_value || 0;
+            acc.q3Gp += division.q3_gp_value || 0;
+            acc.q4Gp += division.q4_gp_value || 0;
             return acc;
         },
         {
             totalRatio: 0,
             totalSales: 0,
+            q1Sales: 0,
+            q2Sales: 0,
+            q3Sales: 0,
+            q4Sales: 0,
             q1: 0,
             q2: 0,
             q3: 0,
             q4: 0,
             grandTotal: 0,
+            totalGp: 0,
+            q1Gp: 0,
+            q2Gp: 0,
+            q3Gp: 0,
+            q4Gp: 0,
         }
     );
+    
+    // Calculate GP% as total GP / total Sales (if sales > 0)
+    summary.gpPercent = summary.totalSales > 0 
+        ? (summary.totalGp / summary.totalSales) 
+        : null;
+    
+    // Calculate quarterly GP%
+    summary.q1GpPercent = summary.q1Sales > 0 
+        ? (summary.q1Gp / summary.q1Sales) 
+        : null;
+    summary.q2GpPercent = summary.q2Sales > 0 
+        ? (summary.q2Gp / summary.q2Sales) 
+        : null;
+    summary.q3GpPercent = summary.q3Sales > 0 
+        ? (summary.q3Gp / summary.q3Sales) 
+        : null;
+    summary.q4GpPercent = summary.q4Sales > 0 
+        ? (summary.q4Gp / summary.q4Sales) 
+        : null;
+    
+    return summary;
 };
 
 const groupRows = computed(() => {
@@ -237,7 +306,10 @@ const formatCurrency = (value) => {
     }).format(value || 0);
 };
 
-const formatPercent = (value) => `${((value || 0) * 100).toFixed(1)}%`;
+const formatPercent = (value) => {
+    if (value == null || value === undefined) return "-";
+    return `${(value * 100).toFixed(1)}%`;
+};
 
 onMounted(() => {
     updateNavActions();
@@ -316,6 +388,20 @@ onUnmounted(() => navActions.clear());
                             <th>Group</th>
                             <th class="text-right">Total Ratio</th>
                             <th class="text-right">Total Sales</th>
+                            <th class="text-right">Q1 Sales</th>
+                            <th class="text-right">Q2 Sales</th>
+                            <th class="text-right">Q3 Sales</th>
+                            <th class="text-right">Q4 Sales</th>
+                            <th class="text-right">GP%</th>
+                            <th class="text-right">Q1 GP%</th>
+                            <th class="text-right">Q2 GP%</th>
+                            <th class="text-right">Q3 GP%</th>
+                            <th class="text-right">Q4 GP%</th>
+                            <th class="text-right">GP $</th>
+                            <th class="text-right">Q1 GP</th>
+                            <th class="text-right">Q2 GP</th>
+                            <th class="text-right">Q3 GP</th>
+                            <th class="text-right">Q4 GP</th>
                             <th class="text-right">Q1 Budget</th>
                             <th class="text-right">Q2 Budget</th>
                             <th class="text-right">Q3 Budget</th>
@@ -353,6 +439,48 @@ onUnmounted(() => navActions.clear());
                                 </td>
                                 <td class="text-right font-mono">
                                     {{ formatCurrency(row.summary.totalSales) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q1Sales) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q2Sales) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q3Sales) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q4Sales) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatPercent(row.summary.gpPercent) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatPercent(row.summary.q1GpPercent) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatPercent(row.summary.q2GpPercent) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatPercent(row.summary.q3GpPercent) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatPercent(row.summary.q4GpPercent) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.totalGp) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q1Gp) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q2Gp) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q3Gp) }}
+                                </td>
+                                <td class="text-right font-mono">
+                                    {{ formatCurrency(row.summary.q4Gp) }}
                                 </td>
                                 <td class="text-right font-mono">
                                     {{ formatCurrency(row.summary.q1) }}

@@ -31,6 +31,7 @@ export function useDivisionData() {
                     totalRatio: 0,
                     hasCustomRatios: false,
                     usesDefaultRatios: false,
+                    has_budget: item.has_budget !== undefined ? item.has_budget : true,
                 };
             }
 
@@ -47,6 +48,20 @@ export function useDivisionData() {
                 total_allocated: item.total_allocated,
                 division_ratio_2025: item.division_ratio_2025,
                 total_2025_sales: item.total_2025_sales,
+                q1_sales: item.q1_sales,
+                q2_sales: item.q2_sales,
+                q3_sales: item.q3_sales,
+                q4_sales: item.q4_sales,
+                gp_percent: item.gp_percent,
+                q1_gp_percent: item.q1_gp_percent,
+                q2_gp_percent: item.q2_gp_percent,
+                q3_gp_percent: item.q3_gp_percent,
+                q4_gp_percent: item.q4_gp_percent,
+                q1_gp_value: item.q1_gp_value,
+                q2_gp_value: item.q2_gp_value,
+                q3_gp_value: item.q3_gp_value,
+                q4_gp_value: item.q4_gp_value,
+                total_gp_value: item.total_gp_value,
                 locked: false, // UI state for lock toggle
             };
 

@@ -216,7 +216,9 @@ class GrossProfitService:
         result = self.db.exec(query)
         return [dict(row._mapping) for row in result]
 
-    def get_single_gross_profit_group(self, salesperson_id: int, customer_class: str, group_key: str) -> List[Dict[str, Any]]:
+    def get_single_gross_profit_group(
+        self, salesperson_id: int, customer_class: str, group_key: str
+    ) -> List[Dict[str, Any]]:
         """
         Get gross profit data for a single group (same query as main but with WHERE clause).
         """
@@ -418,7 +420,9 @@ class GrossProfitService:
             """
         )
 
-        result = self.db.exec(query.bindparams(sid=salesperson_id, cc=customer_class, gk=group_key))
+        result = self.db.exec(
+            query.bindparams(sid=salesperson_id, cc=customer_class, gk=group_key)
+        )
         return [dict(row._mapping) for row in result]
 
     # ------------------------------------------------------------------
@@ -480,8 +484,6 @@ class GrossProfitService:
         """
         Reset (delete) all GP% overrides.
         """
-        result = self.db.exec(
-            text("DELETE FROM gp_ratio_overrides")
-        )
+        result = self.db.exec(text("DELETE FROM gp_ratio_overrides"))
         self.db.commit()
         return result.rowcount

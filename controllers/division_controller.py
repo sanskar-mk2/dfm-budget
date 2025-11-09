@@ -66,9 +66,9 @@ async def get_division_allocations(
 
 @router.post("/division/save-ratios")
 async def save_division_ratios(
-    request: Request, 
+    request: Request,
     save_request: SaveRatiosRequest,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     """
     Save custom division ratio overrides
@@ -89,10 +89,10 @@ async def save_division_ratios(
 
         # Initialize division service and save overrides
         division_service = DivisionService(db)
-        
+
         # Convert Pydantic models to dictionaries
         overrides_data = [override.dict() for override in save_request.overrides]
-        
+
         result = division_service.save_ratio_overrides(overrides_data)
 
         return {
@@ -116,7 +116,7 @@ async def get_single_division_allocation(
     customer_class: str,
     group_key: str,
     request: Request,
-    db: Session = Depends(get_readonly_session)
+    db: Session = Depends(get_readonly_session),
 ) -> Dict[str, Any]:
     """
     Get allocations for a single group only
@@ -159,10 +159,10 @@ async def get_single_division_allocation(
 @router.delete("/division/reset-group/{salesperson_id}/{customer_class}/{group_key}")
 async def reset_group_overrides(
     salesperson_id: int,
-    customer_class: str, 
+    customer_class: str,
     group_key: str,
     request: Request,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     """
     Reset custom division ratio overrides for a specific group
@@ -183,7 +183,9 @@ async def reset_group_overrides(
 
         # Initialize division service and delete overrides
         division_service = DivisionService(db)
-        deleted_count = division_service.delete_group_overrides(salesperson_id, customer_class, group_key)
+        deleted_count = division_service.delete_group_overrides(
+            salesperson_id, customer_class, group_key
+        )
 
         return {
             "success": True,

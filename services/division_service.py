@@ -16,13 +16,11 @@ class DivisionService:
         query = text(
             """
               SELECT
-                CASE WHEN s.derived_customer_class = 'Hospitality'
+                CASE WHEN s.derived_customer_class LIKE 'Hospitality%'
                      THEN NULLIF(TRIM(s.flag),'')
                      ELSE NULLIF(TRIM(s.customer_name),'')
               END AS group_key,
-                CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN 'Hospitality'
-                     ELSE s.derived_customer_class
-              END AS customer_class,
+                s.derived_customer_class AS customer_class,
                 s.item_division,
                 s.ext_sales,
                 s.ext_cost,
@@ -31,8 +29,8 @@ class DivisionService:
               WHERE s.period >= '2025-01-01' AND s.period < '2026-01-01'
                 AND s.salesperson IS NOT NULL
                 AND (
-                  (s.derived_customer_class='Hospitality' AND s.flag IS NOT NULL AND s.flag<>'')
-                  OR (s.derived_customer_class<>'Hospitality' AND s.customer_name IS NOT NULL AND s.customer_name<>'')
+                  (s.derived_customer_class LIKE 'Hospitality%' AND s.flag IS NOT NULL AND s.flag<>'')
+                  OR (s.derived_customer_class NOT LIKE 'Hospitality%' AND s.customer_name IS NOT NULL AND s.customer_name<>'')
                 )
         """
         )
@@ -176,8 +174,7 @@ class DivisionService:
               SELECT
                 b.salesperson_id,
                 b.salesperson_name,
-                CASE WHEN b.customer_class LIKE 'Hospitality%' THEN 'Hospitality'
-                   ELSE b.customer_class END AS customer_class,
+                b.customer_class,
                 CASE WHEN b.customer_class LIKE 'Hospitality%' THEN NULLIF(TRIM(b.flag),'')
                      ELSE NULLIF(TRIM(b.customer_name),'') END AS group_key,
                 CASE WHEN b.customer_class LIKE 'Hospitality%' THEN NULLIF(TRIM(b.brand),'')
@@ -479,9 +476,8 @@ class DivisionService:
             SELECT DISTINCT
               s.salesperson AS salesperson_id,
               COALESCE(sp.salesman_name, CONCAT('Salesperson ', s.salesperson)) AS salesperson_name,
-              CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN 'Hospitality'
-                   ELSE s.derived_customer_class END AS customer_class,
-              CASE WHEN s.derived_customer_class = 'Hospitality'
+              s.derived_customer_class AS customer_class,
+              CASE WHEN s.derived_customer_class LIKE 'Hospitality%'
                    THEN NULLIF(TRIM(s.flag),'')
                    ELSE NULLIF(TRIM(s.customer_name),'')
               END AS group_key,
@@ -492,19 +488,19 @@ class DivisionService:
             WHERE s.period >= '2025-01-01' AND s.period < '2026-01-01'
               AND s.salesperson IS NOT NULL
               AND (
-                (s.derived_customer_class='Hospitality' AND s.flag IS NOT NULL AND s.flag<>'')
-                OR (s.derived_customer_class<>'Hospitality' AND s.customer_name IS NOT NULL AND s.customer_name<>'')
+                (s.derived_customer_class LIKE 'Hospitality%' AND s.flag IS NOT NULL AND s.flag<>'')
+                OR (s.derived_customer_class NOT LIKE 'Hospitality%' AND s.customer_name IS NOT NULL AND s.customer_name<>'')
               )
               AND NOT EXISTS (
                 SELECT 1 FROM dfm_dashboards.budget_2026 b
                 WHERE b.salesperson_id = s.salesperson
-                  AND b.customer_class = CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN 'Hospitality' ELSE s.derived_customer_class END
+                  AND b.customer_class = s.derived_customer_class
                   AND CASE WHEN b.customer_class LIKE 'Hospitality%' THEN NULLIF(TRIM(b.flag),'') ELSE NULLIF(TRIM(b.customer_name),'') END = 
-                      CASE WHEN s.derived_customer_class = 'Hospitality' THEN NULLIF(TRIM(s.flag),'') ELSE NULLIF(TRIM(s.customer_name),'') END
+                      CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN NULLIF(TRIM(s.flag),'') ELSE NULLIF(TRIM(s.customer_name),'') END
               )
             GROUP BY s.salesperson, sp.salesman_name,
-                     CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN 'Hospitality' ELSE s.derived_customer_class END,
-                     CASE WHEN s.derived_customer_class = 'Hospitality' THEN NULLIF(TRIM(s.flag),'') ELSE NULLIF(TRIM(s.customer_name),'') END
+                     s.derived_customer_class,
+                     CASE WHEN s.derived_customer_class LIKE 'Hospitality%' THEN NULLIF(TRIM(s.flag),'') ELSE NULLIF(TRIM(s.customer_name),'') END
         """
         )
         result = self.db.exec(query)
